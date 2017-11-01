@@ -1,6 +1,7 @@
 from errbot import BotPlugin, botcmd, webhook
 from slackclient import SlackClient
 import configparser
+import os
 
 
 class ErrForward(BotPlugin):
@@ -45,7 +46,7 @@ class ErrForward(BotPlugin):
     @botcmd
     def forward(self, mess, args):
         config = configparser.ConfigParser()
-        config.read('/home/debian/.rssSlack')
+        config.read([os.path.expanduser('~/'+'.rssSlack')
 
         slack_token = config["Slack"].get('api-key')
         sc = SlackClient(slack_token)
