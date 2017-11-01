@@ -46,7 +46,7 @@ class ErrForward(BotPlugin):
     @botcmd
     def forward(self, mess, args):
         config = configparser.ConfigParser()
-        config.read([os.path.expanduser('~/'+'.rssSlack')
+        config.read([os.path.expanduser('~/'+'.rssSlack')])
 
         slack_token = config["Slack"].get('api-key')
         sc = SlackClient(slack_token)
