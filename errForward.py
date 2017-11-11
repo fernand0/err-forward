@@ -65,17 +65,6 @@ class ErrForward(BotPlugin):
 
     @botcmd
     def forward(self, mess, args):
-        config = configparser.ConfigParser()
-        config.read([os.path.expanduser('~/'+'.rssSlack')])
 
-        slack_token = config["Slack"].get('api-key')
-        sc = SlackClient(slack_token)
-
-        chan = "#" + str(self._check_config('channel'))
-        yield(chan)
-        yield(sc.api_call(
-          "chat.postMessage",
-           channel=chan,
-           text= args
-           ))
+        yield(self.publishSlack(args))
 
