@@ -22,6 +22,7 @@ class ErrForward(BotPlugin):
         userName = pwd.getpwuid(os.getuid())[0]
         userHost = os.uname()[1]
         self.publishSlack("%s: Hello I'm User:%s at Host:%s" % (dateNow, userName, userHost))
+        super().activate()
 
     #def deactivate(self):
     #    """
