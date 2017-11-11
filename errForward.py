@@ -66,6 +66,5 @@ class ErrForward(BotPlugin):
     @botcmd
     def forward(self, mess, args):
         yield(args)
-
         yield(self.publishSlack(args))
 
