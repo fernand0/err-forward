@@ -18,10 +18,7 @@ class ErrForward(BotPlugin):
         """
         #super(Skeleton, self).activate()
         
-        dateNow = datetime.datetime.now().isoformat()
-        userName = pwd.getpwuid(os.getuid())[0]
-        userHost = os.uname()[1]
-        self.publishSlack("%s: Hello I'm User:%s at Host:%s" % (dateNow, userName, userHost))
+        self.publishSlack("Hello!")
         super().activate()
 
     #def deactivate(self):
@@ -58,14 +55,17 @@ class ErrForward(BotPlugin):
         sc = SlackClient(slack_token)
     
         chan = "#" + str(self._check_config('channel'))
+        dateNow = datetime.datetime.now().isoformat()
+        userName = pwd.getpwuid(os.getuid())[0]
+        userHost = os.uname()[1]
+        text = "%s: User:%s at Host:%s. Msg: '%s'" % (dateNow, userName, userHost, args)
         sc.api_call(
               "chat.postMessage",
                channel=chan,
-               text= args
+               text= text
                )
 
     @botcmd
     def forward(self, mess, args):
-        yield(args)
         yield(self.publishSlack(args))
 
