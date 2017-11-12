@@ -85,6 +85,7 @@ class ErrForward(BotPlugin):
                 history = sc.api_call( "channels.history", channel=theChannel)
                 for msg in history['messages']: 
                     if msg['text'].find('')>=0: 
+                        print("sí")
         
     @botcmd
     def forward(self, mess, args):
