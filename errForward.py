@@ -47,6 +47,12 @@ class ErrForward(BotPlugin):
             else:
                 return None
 
+    def callback_message(self, mess):
+        userName = pwd.getpwuid(os.getuid())[0]
+        userHost = os.uname()[1]
+        if (mess.body.find(userName) == -1) or (mess.body.find(hostName) == -1):
+            yield("Trying!")
+
     def publishSlack(self, args):
         config = configparser.ConfigParser()
         config.read([os.path.expanduser('~/'+'.rssSlack')])
@@ -55,10 +61,10 @@ class ErrForward(BotPlugin):
         sc = SlackClient(slack_token)
     
         chan = "#" + str(self._check_config('channel'))
-        dateNow = datetime.datetime.now().isoformat()
+        #dateNow = datetime.datetime.now().isoformat()
         userName = pwd.getpwuid(os.getuid())[0]
         userHost = os.uname()[1]
-        text = "%s: User:%s at Host:%s. Msg: '%s'" % (dateNow, userName, userHost, args)
+        text = "User:%s at Host:%s. Msg: '%s'" % (userName, userHost, args)
         sc.api_call(
               "chat.postMessage",
                channel=chan,
