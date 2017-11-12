@@ -10,6 +10,7 @@ class ErrForward(BotPlugin):
     An Err plugin for forwarding instructions
     """
 
+ 
     def activate(self):
         """
         Triggers on plugin activation
@@ -20,6 +21,7 @@ class ErrForward(BotPlugin):
         
         self.publishSlack('Msg', 'Hello!')
         super().activate()
+        self.start_poller(60, self.readSlack)
 
     #def deactivate(self):
     #    """
@@ -71,6 +73,7 @@ class ErrForward(BotPlugin):
                text= text
                )
 
+ 
     def readSlack(self):
         config = configparser.ConfigParser()
         config.read([os.path.expanduser('~/'+'.rssSlack')])
@@ -84,9 +87,19 @@ class ErrForward(BotPlugin):
                 theChannel = channel['id']
                 history = sc.api_call( "channels.history", channel=theChannel)
                 for msg in history['messages']: 
-                    if msg['text'].find('')>=0: 
+                    if msg['text'].find('Cmd')>=0: 
                         print("sí")
-        
+                        self.publishSlack('Msg', msg['text'])      
+                        self.deleteSlack('Msg', theChannel, msg['ts'])      
+
+    def deleteSlack(self, theChannel, ts):
+        config = configparser.ConfigParser()
+        config.read([os.path.expanduser('~/'+'.rssSlack')])
+    
+        slack_token = config["Slack"].get('api-key')
+        sc = SlackClient(slack_token) 
+        sc.api_call("chat.delete", channel=theChannel, ts=ts) 
+
     @botcmd
     def forward(self, mess, args):
         yield(self.publishSlack('Cmd', args))
