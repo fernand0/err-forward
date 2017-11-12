@@ -18,7 +18,7 @@ class ErrForward(BotPlugin):
         """
         #super(Skeleton, self).activate()
         
-        self.publishSlack("Msg', "Hello!")
+        self.publishSlack('Msg', 'Hello!')
         super().activate()
 
     #def deactivate(self):
