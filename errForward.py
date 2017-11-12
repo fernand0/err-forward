@@ -18,7 +18,7 @@ class ErrForward(BotPlugin):
         """
         #super(Skeleton, self).activate()
         
-        self.publishSlack("Hello!")
+        self.publishSlack("Msg', "Hello!")
         super().activate()
 
     #def deactivate(self):
@@ -53,7 +53,7 @@ class ErrForward(BotPlugin):
         if (mess.body.find(userName) == -1) or (mess.body.find(hostName) == -1):
             yield("Trying!")
 
-    def publishSlack(self, args):
+    def publishSlack(self, cmd, args):
         config = configparser.ConfigParser()
         config.read([os.path.expanduser('~/'+'.rssSlack')])
     
@@ -64,14 +64,29 @@ class ErrForward(BotPlugin):
         #dateNow = datetime.datetime.now().isoformat()
         userName = pwd.getpwuid(os.getuid())[0]
         userHost = os.uname()[1]
-        text = "User:%s at Host:%s. Msg: '%s'" % (userName, userHost, args)
+        text = "User:%s at Host:%s. %s: '%s'" % (userName, userHost, cmd, args)
         sc.api_call(
               "chat.postMessage",
                channel=chan,
                text= text
                )
 
+    def readSlack(self):
+        config = configparser.ConfigParser()
+        config.read([os.path.expanduser('~/'+'.rssSlack')])
+    
+        slack_token = config["Slack"].get('api-key')
+        sc = SlackClient(slack_token) 
+
+        chanList = sc.api_call("channels.list")['channels']
+        for channel in chanList:
+            if channel['name_normalized'] == 'general':
+                theChannel = channel['id']
+                history = sc.api_call( "channels.history", channel=theChannel)
+                for msg in history['messages']: 
+                    if msg['text'].find('')>=0: 
+        
     @botcmd
     def forward(self, mess, args):
-        yield(self.publishSlack(args))
+        yield(self.publishSlack('Cmd', args))
 
