@@ -10,7 +10,12 @@ class ErrForward(BotPlugin):
     An Err plugin for forwarding instructions
     """
 
- 
+    def getMyIP(self):
+        import socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('google.com', 0))
+        s.getsockname()[0]
+         
     def activate(self):
         """
         Triggers on plugin activation
@@ -19,7 +24,8 @@ class ErrForward(BotPlugin):
         """
         #super(Skeleton, self).activate()
         
-        self.publishSlack('Msg', 'Hello!')
+        res = self.publishSlack('Msg', 'Hello!')
+        yield(res)
         super().activate()
         self.start_poller(60, self.readSlack)
 
@@ -67,11 +73,12 @@ class ErrForward(BotPlugin):
         userName = pwd.getpwuid(os.getuid())[0]
         userHost = os.uname()[1]
         text = "User:%s at Host:%s. %s: '%s'" % (userName, userHost, cmd, args)
-        sc.api_call(
+        return(sc.api_call(
               "chat.postMessage",
                channel=chan,
                text= text
-               )
+               ))
+    
 
  
     def readSlack(self):
