@@ -14,7 +14,7 @@ class ErrForward(BotPlugin):
         import socket
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(('google.com', 0))
-        s.getsockname()[0]
+        return(s.getsockname()[0])
          
     def activate(self):
         """
@@ -24,8 +24,7 @@ class ErrForward(BotPlugin):
         """
         #super(Skeleton, self).activate()
         
-        res = self.publishSlack('Msg', 'Hello!')
-        yield(res)
+        self.publishSlack('Msg', 'Hello! from %s' % self.getMyIP())
         super().activate()
         self.start_poller(60, self.readSlack)
 
@@ -79,8 +78,6 @@ class ErrForward(BotPlugin):
                text= text
                ))
     
-
- 
     def readSlack(self):
         config = configparser.ConfigParser()
         config.read([os.path.expanduser('~/'+'.rssSlack')])
@@ -111,3 +108,6 @@ class ErrForward(BotPlugin):
     def forward(self, mess, args):
         yield(self.publishSlack('Cmd', args))
 
+    @botcmd
+    def myIP(self, mess, args):
+        yield(self.getMyIP())
