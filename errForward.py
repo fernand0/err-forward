@@ -24,8 +24,8 @@ class ErrForward(BotPlugin):
         """
         #super(Skeleton, self).activate()
         
-        self.publishSlack('Msg', 'Hello! from %s' % self.getMyIP())
         super().activate()
+        self.publishSlack('Msg', 'Hello! from %s' % self.getMyIP())
         self.start_poller(60, self.readSlack)
 
     #def deactivate(self):
@@ -84,17 +84,20 @@ class ErrForward(BotPlugin):
     
         slack_token = config["Slack"].get('api-key')
         sc = SlackClient(slack_token) 
+        self.publishSlack('In', 'reading')
 
         chanList = sc.api_call("channels.list")['channels']
+        chan = "#" + str(self._check_config('channel'))
         for channel in chanList:
-            if channel['name_normalized'] == 'general':
+            if channel['name_normalized'] == chan:
                 theChannel = channel['id']
                 history = sc.api_call( "channels.history", channel=theChannel)
                 for msg in history['messages']: 
-                    if msg['text'].find('Cmd')>=0: 
-                        print("sí")
-                        self.publishSlack('Msg', msg['text'])      
-                        self.deleteSlack('Msg', theChannel, msg['ts'])      
+                    pos = msg['text'].find('Cmd')
+                    if pos >= 0: 
+                        self.publishSlack('Msg', msg['text'][pos+5+1:-1])      
+                        yield(msg['ts'])
+                        self.deleteSlack(chan, msg['ts'])
 
     def deleteSlack(self, theChannel, ts):
         config = configparser.ConfigParser()
@@ -107,6 +110,13 @@ class ErrForward(BotPlugin):
     @botcmd
     def forward(self, mess, args):
         yield(self.publishSlack('Cmd', args))
+        yield(type(self._bot.all_commands.items()))
+        yield(type(self._bot.all_commands.keys()))
+        listCommands = self._bot.all_commands
+        if 'sf' in listCommands:
+            yield(listCommands['sf'])
+        #for (name, command) in self._bot.all_commands.items():
+        #    yield(name)
 
     @botcmd
     def myIP(self, mess, args):
