@@ -25,8 +25,18 @@ class ErrForward(BotPlugin):
         #super(Skeleton, self).activate()
         
         super().activate()
+        self.log.info('Vamos allá')
+
+        config = configparser.ConfigParser()
+        config.read([os.path.expanduser('~/'+'.rssSlack')])
+    
+        slack_token = config["Slack"].get('api-key')
+        
+        self['sc'] = SlackClient(slack_token)
+
         self.publishSlack('Msg', 'Hello! from %s' % self.getMyIP())
         self.start_poller(60, self.readSlack)
+        self.log.info('Debería estar activo')
 
     #def deactivate(self):
     #    """
@@ -61,57 +71,51 @@ class ErrForward(BotPlugin):
             yield("Trying!")
 
     def publishSlack(self, cmd, args):
-        config = configparser.ConfigParser()
-        config.read([os.path.expanduser('~/'+'.rssSlack')])
-    
-        slack_token = config["Slack"].get('api-key')
-        sc = SlackClient(slack_token)
-    
-        chan = "#" + str(self._check_config('channel'))
+
+        chan = str(self._check_config('channel'))
         #dateNow = datetime.datetime.now().isoformat()
         userName = pwd.getpwuid(os.getuid())[0]
         userHost = os.uname()[1]
         text = "User:%s at Host:%s. %s: '%s'" % (userName, userHost, cmd, args)
-        return(sc.api_call(
+        return(self['sc'].api_call(
               "chat.postMessage",
-               channel=chan,
-               text= text
+               channel = chan,
+               text = text
                ))
-    
-    def readSlack(self):
-        config = configparser.ConfigParser()
-        config.read([os.path.expanduser('~/'+'.rssSlack')])
-    
-        slack_token = config["Slack"].get('api-key')
-        sc = SlackClient(slack_token) 
-        self.publishSlack('In', 'reading')
 
-        chanList = sc.api_call("channels.list")['channels']
-        chan = "#" + str(self._check_config('channel'))
-        for channel in chanList:
+    def normalizedChan(self, chan): 
+        chanList = self['sc'].api_call("channels.list")['channels'] 
+        for channel in chanList: 
             if channel['name_normalized'] == chan:
-                theChannel = channel['id']
-                history = sc.api_call( "channels.history", channel=theChannel)
-                for msg in history['messages']: 
-                    pos = msg['text'].find('Cmd')
-                    if pos >= 0: 
-                        self.publishSlack('Msg', msg['text'][pos+5+1:-1])      
-                        yield(msg['ts'])
-                        self.deleteSlack(chan, msg['ts'])
+                return(channel['id'])
+        return('')
+
+    def readSlack(self):
+        self.log.info('Entering readSlack')
+        self.log.info('In reading')
+        chan = self.normalizedChan(self._check_config('channel'))
+        history = self['sc'].api_call( "channels.history", channel=chan)
+        for msg in history['messages']: 
+            self.log.info(msg['text'])
+            pos = msg['text'].find('Cmd')
+            if pos >= 0: 
+                self.log.info('Msg -%s-' % msg['text'][pos+5+1:-1])
+                listCommands = self._bot.all_commands
+                cmdM = msg['text'][pos+5+1:-1]
+                if not cmdM.startswith(','): return ""
+                cmd = cmdM[1:cmdM.find(' ')]
+                self.log.info('Msg-cmd -%s-' % cmd)
+                if cmd in listCommands:
+                    self.log.info("I'd execute -%s- with argument -%s-" % (cmd, cmdM[len(cmd)+1:])
+                    self.deleteSlack(chan, msg['ts'])
+        self.log.info('End reading')
 
     def deleteSlack(self, theChannel, ts):
-        config = configparser.ConfigParser()
-        config.read([os.path.expanduser('~/'+'.rssSlack')])
-    
-        slack_token = config["Slack"].get('api-key')
-        sc = SlackClient(slack_token) 
-        sc.api_call("chat.delete", channel=theChannel, ts=ts) 
+        self['sc'].api_call("chat.delete", channel=theChannel, ts=ts) 
 
     @botcmd
     def forward(self, mess, args):
-        yield(self.publishSlack('Cmd', args))
-        yield(type(self._bot.all_commands.items()))
-        yield(type(self._bot.all_commands.keys()))
+        self.publishSlack('Cmd', args)
         listCommands = self._bot.all_commands
         if 'sf' in listCommands:
             yield(listCommands['sf'])

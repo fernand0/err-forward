@@ -8,3 +8,5 @@ Description = An Err plugin for forwarding instructions
 [Python]
 Version = 3
 
+[Errbot]
+min = 5.0.0
