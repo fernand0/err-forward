@@ -101,7 +101,8 @@ class ErrForward(BotPlugin):
                 self.log.debug('Msg -%s-' % msg['text'][pos+5+1:-1])
                 listCommands = self._bot.all_commands
                 cmdM = msg['text'][pos+5+1:-1]
-                if not cmdM.startswith(','): return ""
+                if not cmdM.startswith(self._bot.bot_config.BOT_PREFIX): 
+                    return ""
                 posE = cmdM.find(' ')
                 if posE > 0:
                     cmd = cmdM[1:posE]
