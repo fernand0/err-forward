@@ -91,24 +91,32 @@ class ErrForward(BotPlugin):
         return('')
 
     def readSlack(self):
-        self.log.info('Entering readSlack')
-        self.log.info('In reading')
+        self.log.info('Start reading Slack')
         chan = self.normalizedChan(self._check_config('channel'))
         history = self['sc'].api_call( "channels.history", channel=chan)
         for msg in history['messages']: 
             self.log.info(msg['text'])
             pos = msg['text'].find('Cmd')
             if pos >= 0: 
-                self.log.info('Msg -%s-' % msg['text'][pos+5+1:-1])
+                self.log.debug('Msg -%s-' % msg['text'][pos+5+1:-1])
                 listCommands = self._bot.all_commands
                 cmdM = msg['text'][pos+5+1:-1]
                 if not cmdM.startswith(','): return ""
-                cmd = cmdM[1:cmdM.find(' ')]
-                self.log.info('Msg-cmd -%s-' % cmd)
+                posE = cmdM.find(' ')
+                if posE > 0:
+                    cmd = cmdM[1:posE]
+                else:
+                    cmd = cmdM[1:]
+                self.log.debug('Msg-cmd -%s-' % cmd)
                 if cmd in listCommands:
-                    self.log.info("I'd execute -%s- with argument -%s-" % (cmd, cmdM[len(cmd)+1:])
+                    self.log.debug("I'd execute -%s- with argument -%s-" % (cmd, cmdM[len(cmd)+1:]))
+                    myMsg = self._bot.build_message(cmdM)
+                    botAdmin = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
+                    myMsg.frm =  botAdmin
+                    myMsg.to = botAdmin
+                    self._bot.process_message(myMsg)
                     self.deleteSlack(chan, msg['ts'])
-        self.log.info('End reading')
+        self.log.info('End reading Slack')
 
     def deleteSlack(self, theChannel, ts):
         self['sc'].api_call("chat.delete", channel=theChannel, ts=ts) 
