@@ -145,7 +145,7 @@ class ErrForward(BotPlugin):
                         # It's for me
                         replies = msg['text'][pos+len('Rep:')+2:]
                         botAdmin = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
-                        myMsg = self._bot.build_message(cmdM) 
+                        myMsg = self._bot.build_message(replies) 
                         myMsg.frm =  botAdmin 
                         myMsg.to = botAdmin
 
