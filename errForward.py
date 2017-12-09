@@ -78,7 +78,7 @@ class ErrForward(BotPlugin):
         #dateNow = datetime.datetime.now().isoformat()
         userName = pwd.getpwuid(os.getuid())[0]
         userHost = os.uname()[1]
-        text = "User:%s at Host:%s. %s: '%s'" % (userName, userHost, cmd, args)
+        text = "User:%s .Host:%s. %s: '%s'" % (userName, userHost, cmd, args)
         return(self['sc'].api_call(
               "chat.postMessage",
                channel = chan,
@@ -102,7 +102,8 @@ class ErrForward(BotPlugin):
             if pos >= 0: 
                 self.log.debug('Msg -%s-' % msg['text'][pos+5+1:-1])
                 listCommands = self._bot.all_commands
-                token = msg['text'][:pos-1]
+                #token = msg['text'][:pos-1]
+                token = msg['text'].split(':').split('.') #str(random.random()).split('.')[1]
                 cmdM = msg['text'][pos+5+1:-1]
                 if not cmdM.startswith(self._bot.bot_config.BOT_PREFIX): 
                     return ""
@@ -122,15 +123,19 @@ class ErrForward(BotPlugin):
                     myMsg.to = botAdmin
                     #self._bot.process_message(myMsg)
                     method = listCommands[cmd]
+                    txtR = ''
                     if inspect.isgeneratorfunction(method): 
                         replies = method(msg, args) 
                         self.log.debug(replies, type(replies))
                         for reply in replies: 
-                            self.publishSlack('%s Rep' % token,reply)
+                            txtR = txtR + reply + '\n'
+                            #self.publishSlack('%s Rep' % token,reply)
                     else: 
                         reply = method(msg, args) 
                         if reply:
-                            self.publishSlack('%s Rep' % token,reply)
+                            txtR = txtR + reply
+                            #self.publishSlack('%s Rep' % token,reply)
+                    self.publishSlack('%s Rep' % token[1]+'@'+token[3],txtR)
                     #reply = self._bot._execute_and_send(cmd, cmdM[len(cmd)+1:], None, myMsg)
                     self.log.debug(reply)
                     self.deleteSlack(chan, msg['ts'])
@@ -141,8 +146,8 @@ class ErrForward(BotPlugin):
 
     @botcmd
     def forward(self, mess, args):
-        token = str(random.random()).split('.')[1]
-        self.publishSlack('Id: %s Cmd' %token, args)
+        token = args.split(':') #str(random.random()).split('.')[1]
+        self.publishSlack('Id: %s@%s Cmd' % (token[1], token[3]), args)
         listCommands = self._bot.all_commands
         if 'sf' in listCommands:
             yield(listCommands['sf'])
