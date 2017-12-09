@@ -117,10 +117,6 @@ class ErrForward(BotPlugin):
                 if cmd in listCommands:
                     self.log.debug("I'd execute -%s- with argument -%s-" 
                             % (cmd, args))
-                    myMsg = self._bot.build_message(cmdM)
-                    botAdmin = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
-                    myMsg.frm =  botAdmin
-                    myMsg.to = botAdmin
                     #self._bot.process_message(myMsg)
                     method = listCommands[cmd]
                     txtR = ''
@@ -148,8 +144,14 @@ class ErrForward(BotPlugin):
                     if (msg['text'].find(userName+'@'+userHost) >= 0):
                         # It's for me
                         replies = msg['txt'][pos+len('Rep:'+2):]
-                        yield(replies)
+                        botAdmin = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
+                        myMsg = self._bot.build_message(cmdM) 
+                        myMsg.frm =  botAdmin 
+                        myMsg.to = botAdmin
 
+                        self.send(myMsg.frm, 
+                                '{0}'.format(replies))
+                        #yield(replies)
 
         self.log.info('End reading Slack')
 
