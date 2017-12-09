@@ -148,7 +148,7 @@ class ErrForward(BotPlugin):
     @botcmd
     def forward(self, mess, args):
         token = re.split(':|.', args) #str(random.random()).split('.')[1]
-        self.publishSlack('Cmd' % args)
+        self.publishSlack('Cmd' , args)
         listCommands = self._bot.all_commands
         if 'sf' in listCommands:
             yield(listCommands['sf'])
