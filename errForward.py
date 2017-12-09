@@ -152,6 +152,7 @@ class ErrForward(BotPlugin):
                         self.send(myMsg.frm, 
                                 '{0}'.format(replies))
                         #yield(replies)
+                        self.deleteSlack(chan, msg['ts'])
 
         self.log.info('End reading Slack')
 
