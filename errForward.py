@@ -78,7 +78,7 @@ class ErrForward(BotPlugin):
         #dateNow = datetime.datetime.now().isoformat()
         userName = pwd.getpwuid(os.getuid())[0]
         userHost = os.uname()[1]
-        text = "User:%s .Host:%s. %s: '%s'" % (userName, userHost, cmd, args)
+        text = "User:%s.Host:%s. %s: '%s'" % (userName, userHost, cmd, args)
         return(self['sc'].api_call(
               "chat.postMessage",
                channel = chan,
