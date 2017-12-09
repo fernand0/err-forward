@@ -123,7 +123,7 @@ class ErrForward(BotPlugin):
                         replies = method(msg, args) 
                         self.log.debug(replies, type(replies))
                         for reply in replies: 
-                            txtR = txtR + reply + '\n'
+                            txtR = txtR + '\n' + reply 
                     else: 
                         reply = method(msg, args) 
                         if reply:
