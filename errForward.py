@@ -140,6 +140,17 @@ class ErrForward(BotPlugin):
                     #reply = self._bot._execute_and_send(cmd, cmdM[len(cmd)+1:], None, myMsg)
                     self.log.debug(reply)
                     self.deleteSlack(chan, msg['ts'])
+            else:
+                pos = msg['text'].find('Rep')
+                if pos >= 0:
+                    userName = pwd.getpwuid(os.getuid())[0]
+                    userHost = os.uname()[1]
+                    if (msg['text'].find(userName+'@'+userHost) >= 0):
+                        # It's for me
+                        replies = msg['txt'][pos+len('Rep:'+2):]
+                        yield(replies)
+
+
         self.log.info('End reading Slack')
 
     def deleteSlack(self, theChannel, ts):
