@@ -144,7 +144,7 @@ class ErrForward(BotPlugin):
                     if (msg['text'].find(userName+'@'+userHost) >= 0):
                         # It's for me
                         replies = msg['text'][pos+len('Rep:')+2:]
-                        for reply in replies:
+                        for reply in replies.split('\n'):
                             botAdmin = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
                             #myMsg = self._bot.build_message(reply) 
                             #myMsg.frm =  botAdmin 
