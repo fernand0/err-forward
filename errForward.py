@@ -144,14 +144,15 @@ class ErrForward(BotPlugin):
                     if (msg['text'].find(userName+'@'+userHost) >= 0):
                         # It's for me
                         replies = msg['text'][pos+len('Rep:')+2:]
-                        botAdmin = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
-                        myMsg = self._bot.build_message(replies) 
-                        myMsg.frm =  botAdmin 
-                        myMsg.to = botAdmin
+                        for reply in replies:
+                            botAdmin = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
+                            #myMsg = self._bot.build_message(reply) 
+                            #myMsg.frm =  botAdmin 
+                            #myMsg.to = botAdmin
 
-                        self.send(myMsg.frm, 
-                                '{0}'.format(replies))
-                        #yield(replies)
+                            self.send(botAdmin, 
+                                    '{0}'.format(reply))
+                            #yield(replies)
                         self.deleteSlack(chan, msg['ts'])
 
         self.log.info('End reading Slack')
