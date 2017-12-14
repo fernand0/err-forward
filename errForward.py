@@ -121,9 +121,9 @@ class ErrForward(BotPlugin):
                     txtR = ''
                     if inspect.isgeneratorfunction(method): 
                         replies = method(msg, args) 
-                        self.log.debug(replies, type(replies))
                         for reply in replies: 
-                            txtR = txtR + '\n' + reply 
+                            if not isinstance(reply, dict):
+                                txtR = txtR + '\n' + reply 
                     else: 
                         reply = method(msg, args) 
                         if reply:
