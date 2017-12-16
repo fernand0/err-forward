@@ -106,6 +106,10 @@ class ErrForward(BotPlugin):
             self.log.info(msg['text'])
             pos = msg['text'].find('Cmd')
             token = re.split(':|\.| ', msg['text']) 
+            tokenCad =''
+            for i in range(len(token)):
+                tokenCad = tokenCad + token[i]+ '. '
+            self.log.info("token => %s" % tokenCad)
             if pos >= 0: 
                 self.log.debug('Msg -%s-' % msg['text'][pos+5+1:-1])
                 listCommands = self._bot.all_commands
@@ -133,11 +137,7 @@ class ErrForward(BotPlugin):
                         reply = method(msg, args) 
                         if reply:
                             txtR = txtR + reply
-                    tokenCad =''
-                    for i in range(len(token)):
-                        tokenCad = tokenCad + token[i]+ '. '
-                    self.log.info("token => %s" % tokenCad)
-                    self.publishSlack(cmd = '%s@%s.From:%s. Rep' % (token[1],token[3],token[5]),args = txtR)
+                    self.publishSlack(cmd = '%s@%s.From:%s. Rep' % (token[1],token[3],token[9]),args = txtR)
 
                     self.log.debug(reply)
                     self.deleteSlack(chan, msg['ts'])
