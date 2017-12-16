@@ -147,6 +147,7 @@ class ErrForward(BotPlugin):
                         replies = msg['text'][pos+len('Rep:')+2:]
                         for reply in replies.split('\n'):
                             posIFrom = reply.find('From')
+                            self.log.info('Reply: %s' % reply)
                             self.log.info('posIFrom %d' % posIFrom)
                             if posIFrom >= 0:
                                 posFFrom = reply.find('. ', posIFrom)
