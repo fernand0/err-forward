@@ -153,8 +153,9 @@ class ErrForward(BotPlugin):
 
     @botcmd
     def forward(self, mess, args):
-        token = re.split(':|\.', args) 
-        self.publishSlack('Cmd' , args)
+        #token = re.split(':|\.', args) 
+        text = args + ' From: %s'%mess.frm
+        self.publishSlack('Cmd' , text)
 
     @botcmd
     def myIP(self, mess, args):
