@@ -88,9 +88,8 @@ class ErrForward(BotPlugin):
                 history = sc.api_call( "channels.history", channel=theChannel)
                 for msg in history['messages']: 
                     if msg['text'].find('Cmd')>=0: 
-                        print("sí")
                         self.publishSlack('Msg', msg['text'])      
-                        self.deleteSlack('Msg', theChannel, msg['ts'])      
+                        self.deleteSlack(theChannel, msg['ts'])      
 
     def deleteSlack(self, theChannel, ts):
         config = configparser.ConfigParser()
