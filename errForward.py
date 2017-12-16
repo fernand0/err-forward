@@ -102,13 +102,13 @@ class ErrForward(BotPlugin):
         self.log.info('Start reading Slack')
         chan = self.normalizedChan(self._check_config('channel'))
         history = self['sc'].api_call( "channels.history", channel=chan)
+        token = re.split(':|\.| ', msg['text']) 
         for msg in history['messages']: 
             self.log.info(msg['text'])
             pos = msg['text'].find('Cmd')
             if pos >= 0: 
                 self.log.debug('Msg -%s-' % msg['text'][pos+5+1:-1])
                 listCommands = self._bot.all_commands
-                token = re.split(':|\.| ', msg['text']) 
                 cmdM = msg['text'][pos+5+1:-1]
                 if not cmdM.startswith(self._bot.bot_config.BOT_PREFIX): 
                     return ""
@@ -146,7 +146,12 @@ class ErrForward(BotPlugin):
                         # It's for me
                         replies = msg['text'][pos+len('Rep:')+2:]
                         for reply in replies.split('\n'):
-                            botAdmin = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
+                            posIFrom = reply.find('From')
+                            if posIFrom >= 0:
+                                posFFrom = reply.find('. ', posIFrom)
+                                botAdmin = self._bot.build_identifier(reply[posIFrom+5:posFFrom])
+                            else:
+                                botAdmin = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
                             self.send(botAdmin, 
                                     '{0}'.format(reply))
                         self.deleteSlack(chan, msg['ts'])
