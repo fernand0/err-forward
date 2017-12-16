@@ -152,8 +152,7 @@ class ErrForward(BotPlugin):
                                 botAdmin = self._bot.build_identifier(reply[posIFrom+5:posFFrom])
                             else:
                                 botAdmin = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
-                            self.send(botAdmin, 
-                                    '{0}'.format(reply))
+                            self.send(botAdmin, '{0}'.format(reply))
                         self.deleteSlack(chan, msg['ts'])
 
         self.log.info('End reading Slack')
