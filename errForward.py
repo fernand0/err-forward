@@ -152,11 +152,13 @@ class ErrForward(BotPlugin):
                     posMe = msg['text'].find(userName+'@'+userHost)
                     if (posMe >= 0):
                         # It's for me
+                        yield("posMe %s" % msg['text'][posMe:])
                         posIFrom = msg['text'].find('From', posMe)
                         self.log.info('Reply: %s' % msg['text'])
                         self.log.info('posIFrom %d' % posIFrom)
                         if posIFrom >= 0:
                             posFFrom = msg['text'].find('. ', posIFrom)
+                            yield("posIFrom %s" % msg['text'][posIFrom:posFFrom])
                         self.log.info('reply From %s' % msg['text'][posIFrom+5:posFFrom])
                         replies = msg['text'][pos+len('Rep:')+2:]
                         for reply in replies.split('\n'):
