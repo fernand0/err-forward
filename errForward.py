@@ -79,6 +79,7 @@ class ErrForward(BotPlugin):
         chan = str(self._check_config('channel'))
         userName = pwd.getpwuid(os.getuid())[0]
         userHost = os.uname()[1]
+        self.log.info("mess %s" % mess)
         if mess: 
             frm = mess.frm
         else:
