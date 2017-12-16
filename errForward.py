@@ -38,7 +38,7 @@ class ErrForward(BotPlugin):
         
         self['sc'] = SlackClient(slack_token)
 
-        self.publishSlack('Msg', 'Hello! from %s' % self.getMyIP())
+        self.publishSlack(cmd = 'Msg', args = 'Hello! from %s' % self.getMyIP())
         self.start_poller(60, self.readSlack)
         self.log.info('Debería estar activo')
 
@@ -74,12 +74,12 @@ class ErrForward(BotPlugin):
         if (mess.body.find(userName) == -1) or (mess.body.find(hostName) == -1):
             yield("Trying!")
 
-    def publishSlack(self, cmd, args):
+    def publishSlack(self, mess = "", cmd, args):
 
         chan = str(self._check_config('channel'))
         userName = pwd.getpwuid(os.getuid())[0]
         userHost = os.uname()[1]
-        text = "User:%s.Host:%s. %s: '%s'" % (userName, userHost, cmd, args)
+        text = "User:%s.Host:%s.From:%s %s: '%s'" % (userName, userHost, mess.frm, cmd, args)
         return(self['sc'].api_call(
               "chat.postMessage",
                channel = chan,
@@ -128,7 +128,7 @@ class ErrForward(BotPlugin):
                         reply = method(msg, args) 
                         if reply:
                             txtR = txtR + reply
-                    self.publishSlack('%s@%s Rep' % (token[1],token[3]),txtR)
+                    self.publishSlack(cmd = '%s@%s Rep' % (token[1],token[3]),args = txtR)
 
                     self.log.debug(reply)
                     self.deleteSlack(chan, msg['ts'])
@@ -154,8 +154,7 @@ class ErrForward(BotPlugin):
     @botcmd
     def forward(self, mess, args):
         #token = re.split(':|\.', args) 
-        text = args + ' From: %s'%mess.frm
-        self.publishSlack('Cmd' , text)
+        self.publishSlack(mess, cmd = 'Cmd' , args = args)
 
     @botcmd
     def myIP(self, mess, args):
