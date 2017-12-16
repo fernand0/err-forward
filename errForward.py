@@ -3,14 +3,23 @@ from slackclient import SlackClient
 import configparser
 import os, pwd
 import datetime
+import inspect
+import re
 
+def end(msg=""):
+    return("END"+msg)
 
 class ErrForward(BotPlugin):
     """
     An Err plugin for forwarding instructions
     """
 
- 
+    def getMyIP(self):
+        import socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('google.com', 0))
+        return(s.getsockname()[0])
+         
     def activate(self):
         """
         Triggers on plugin activation
@@ -19,9 +28,19 @@ class ErrForward(BotPlugin):
         """
         #super(Skeleton, self).activate()
         
-        self.publishSlack('Msg', 'Hello!')
         super().activate()
+        self.log.info('Vamos allá')
+
+        config = configparser.ConfigParser()
+        config.read([os.path.expanduser('~/'+'.rssSlack')])
+    
+        slack_token = config["Slack"].get('api-key')
+        
+        self['sc'] = SlackClient(slack_token)
+
+        self.publishSlack('Msg', 'Hello! from %s' % self.getMyIP())
         self.start_poller(60, self.readSlack)
+        self.log.info('Debería estar activo')
 
     #def deactivate(self):
     #    """
@@ -56,50 +75,88 @@ class ErrForward(BotPlugin):
             yield("Trying!")
 
     def publishSlack(self, cmd, args):
-        config = configparser.ConfigParser()
-        config.read([os.path.expanduser('~/'+'.rssSlack')])
-    
-        slack_token = config["Slack"].get('api-key')
-        sc = SlackClient(slack_token)
-    
-        chan = "#" + str(self._check_config('channel'))
-        #dateNow = datetime.datetime.now().isoformat()
+
+        chan = str(self._check_config('channel'))
         userName = pwd.getpwuid(os.getuid())[0]
         userHost = os.uname()[1]
-        text = "User:%s at Host:%s. %s: '%s'" % (userName, userHost, cmd, args)
-        sc.api_call(
+        text = "User:%s.Host:%s. %s: '%s'" % (userName, userHost, cmd, args)
+        return(self['sc'].api_call(
               "chat.postMessage",
-               channel=chan,
-               text= text
-               )
+               channel = chan,
+               text = text
+               ))
 
- 
+    def normalizedChan(self, chan): 
+        chanList = self['sc'].api_call("channels.list")['channels'] 
+        for channel in chanList: 
+            if channel['name_normalized'] == chan:
+                return(channel['id'])
+        return('')
+
     def readSlack(self):
-        config = configparser.ConfigParser()
-        config.read([os.path.expanduser('~/'+'.rssSlack')])
-    
-        slack_token = config["Slack"].get('api-key')
-        sc = SlackClient(slack_token) 
+        self.log.info('Start reading Slack')
+        chan = self.normalizedChan(self._check_config('channel'))
+        history = self['sc'].api_call( "channels.history", channel=chan)
+        for msg in history['messages']: 
+            self.log.info(msg['text'])
+            pos = msg['text'].find('Cmd')
+            if pos >= 0: 
+                self.log.debug('Msg -%s-' % msg['text'][pos+5+1:-1])
+                listCommands = self._bot.all_commands
+                token = re.split(':|\.| ', msg['text']) 
+                cmdM = msg['text'][pos+5+1:-1]
+                if not cmdM.startswith(self._bot.bot_config.BOT_PREFIX): 
+                    return ""
+                posE = cmdM.find(' ')
+                if posE > 0:
+                    cmd = cmdM[1:posE]
+                else:
+                    cmd = cmdM[1:]
+                args = cmdM[len(cmd)+1+1:]
+                self.log.debug('Msg-cmd -%s-' % cmd)
+                if cmd in listCommands:
+                    self.log.debug("I'd execute -%s- with argument -%s-" 
+                            % (cmd, args))
+                    method = listCommands[cmd]
+                    txtR = ''
+                    if inspect.isgeneratorfunction(method): 
+                        replies = method(msg, args) 
+                        for reply in replies: 
+                            if isinstance(reply, str):
+                                txtR = txtR + '\n' + reply 
+                    else: 
+                        reply = method(msg, args) 
+                        if reply:
+                            txtR = txtR + reply
+                    self.publishSlack('%s@%s Rep' % (token[1],token[3]),txtR)
 
-        chanList = sc.api_call("channels.list")['channels']
-        for channel in chanList:
-            if channel['name_normalized'] == 'general':
-                theChannel = channel['id']
-                history = sc.api_call( "channels.history", channel=theChannel)
-                for msg in history['messages']: 
-                    if msg['text'].find('Cmd')>=0: 
-                        self.publishSlack('Msg', msg['text'])      
-                        self.deleteSlack(theChannel, msg['ts'])      
+                    self.log.debug(reply)
+                    self.deleteSlack(chan, msg['ts'])
+            else:
+                pos = msg['text'].find('Rep')
+                if pos >= 0:
+                    userName = pwd.getpwuid(os.getuid())[0]
+                    userHost = os.uname()[1]
+                    if (msg['text'].find(userName+'@'+userHost) >= 0):
+                        # It's for me
+                        replies = msg['text'][pos+len('Rep:')+2:]
+                        for reply in replies.split('\n'):
+                            botAdmin = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
+                            self.send(botAdmin, 
+                                    '{0}'.format(reply))
+                        self.deleteSlack(chan, msg['ts'])
+
+        self.log.info('End reading Slack')
 
     def deleteSlack(self, theChannel, ts):
-        config = configparser.ConfigParser()
-        config.read([os.path.expanduser('~/'+'.rssSlack')])
-    
-        slack_token = config["Slack"].get('api-key')
-        sc = SlackClient(slack_token) 
-        sc.api_call("chat.delete", channel=theChannel, ts=ts) 
+        self['sc'].api_call("chat.delete", channel=theChannel, ts=ts) 
 
     @botcmd
     def forward(self, mess, args):
-        yield(self.publishSlack('Cmd', args))
+        token = re.split(':|\.', args) 
+        self.publishSlack('Cmd' , args)
 
+    @botcmd
+    def myIP(self, mess, args):
+        yield(self.getMyIP())
+        yield(end())
