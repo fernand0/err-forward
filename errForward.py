@@ -139,6 +139,7 @@ class ErrForward(BotPlugin):
                     self.deleteSlack(chan, msg['ts'])
             else:
                 pos = msg['text'].find('Rep')
+                self.log.info('reply -> %s' % msg['text'])
                 if pos >= 0:
                     userName = pwd.getpwuid(os.getuid())[0]
                     userHost = os.uname()[1]
