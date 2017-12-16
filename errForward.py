@@ -133,7 +133,7 @@ class ErrForward(BotPlugin):
                         reply = method(msg, args) 
                         if reply:
                             txtR = txtR + reply
-                    self.publishSlack(cmd = '%s@%s.User:%s. Rep' % (token[1],token[3],token[5]),args = txtR)
+                    self.publishSlack(cmd = '%s@%s.From:%s. Rep' % (token[1],token[3],token[5]),args = txtR)
 
                     self.log.debug(reply)
                     self.deleteSlack(chan, msg['ts'])
