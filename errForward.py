@@ -142,6 +142,12 @@ class ErrForward(BotPlugin):
                 if pos >= 0:
                     userName = pwd.getpwuid(os.getuid())[0]
                     userHost = os.uname()[1]
+                    posIFrom = reply.find('From')
+                    self.log.info('Reply: %s' % reply)
+                    self.log.info('posIFrom %d' % posIFrom)
+                    if posIFrom >= 0:
+                        posFFrom = reply.find('. ', posIFrom)
+                        self.log.info('reply From %s' % reply[posIFrom+5:posFFrom])
                     if (msg['text'].find(userName+'@'+userHost) >= 0):
                         # It's for me
                         replies = msg['text'][pos+len('Rep:')+2:]
@@ -150,8 +156,6 @@ class ErrForward(BotPlugin):
                             self.log.info('Reply: %s' % reply)
                             self.log.info('posIFrom %d' % posIFrom)
                             if posIFrom >= 0:
-                                posFFrom = reply.find('. ', posIFrom)
-                                self.log.info('reply From %s' % reply[posIFrom+5:posFFrom])
                                 botAdmin = self._bot.build_identifier(reply[posIFrom+5:posFFrom])
                             else:
                                 botAdmin = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
