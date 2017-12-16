@@ -74,7 +74,7 @@ class ErrForward(BotPlugin):
         if (mess.body.find(userName) == -1) or (mess.body.find(hostName) == -1):
             yield("Trying!")
 
-    def publishSlack(self, mess = "", cmd, args):
+    def publishSlack(self, mess = "", cmd ="", arg =""):
 
         chan = str(self._check_config('channel'))
         userName = pwd.getpwuid(os.getuid())[0]
