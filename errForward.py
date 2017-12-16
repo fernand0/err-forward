@@ -38,7 +38,7 @@ class ErrForward(BotPlugin):
         
         self['sc'] = SlackClient(slack_token)
 
-        self.publishSlack(cmd = 'Msg', arg = 'Hello! from %s' % self.getMyIP())
+        self.publishSlack(cmd = 'Msg', args = 'Hello! from %s' % self.getMyIP())
         self.start_poller(60, self.readSlack)
         self.log.info('Debería estar activo')
 
@@ -133,7 +133,7 @@ class ErrForward(BotPlugin):
                         reply = method(msg, args) 
                         if reply:
                             txtR = txtR + reply
-                    self.publishSlack(cmd = '%s@%s Rep' % (token[1],token[3]),arg = txtR)
+                    self.publishSlack(cmd = '%s@%s Rep' % (token[1],token[3]),args = txtR)
 
                     self.log.debug(reply)
                     self.deleteSlack(chan, msg['ts'])
@@ -159,7 +159,7 @@ class ErrForward(BotPlugin):
     @botcmd
     def forward(self, mess, args):
         #token = re.split(':|\.', args) 
-        self.publishSlack(mess, cmd = 'Cmd' , arg = args)
+        self.publishSlack(mess, cmd = 'Cmd' , args = args)
 
     @botcmd
     def myIP(self, mess, args):
