@@ -102,10 +102,10 @@ class ErrForward(BotPlugin):
         self.log.info('Start reading Slack')
         chan = self.normalizedChan(self._check_config('channel'))
         history = self['sc'].api_call( "channels.history", channel=chan)
-        token = re.split(':|\.| ', msg['text']) 
         for msg in history['messages']: 
             self.log.info(msg['text'])
             pos = msg['text'].find('Cmd')
+            token = re.split(':|\.| ', msg['text']) 
             if pos >= 0: 
                 self.log.debug('Msg -%s-' % msg['text'][pos+5+1:-1])
                 listCommands = self._bot.all_commands
