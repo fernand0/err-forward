@@ -79,6 +79,11 @@ class ErrForward(BotPlugin):
         chan = str(self._check_config('channel'))
         userName = pwd.getpwuid(os.getuid())[0]
         userHost = os.uname()[1]
+        if mess: 
+            frm = mess.frm
+        else:
+            frm = "-"
+
         text = "User:%s.Host:%s.From:%s %s: '%s'" % (userName, userHost, mess.frm, cmd, args)
         return(self['sc'].api_call(
               "chat.postMessage",
