@@ -134,7 +134,7 @@ class ErrForward(BotPlugin):
                         if reply:
                             txtR = txtR + reply
                     tokenCad =''
-                    for i in len(token):
+                    for i in range(len(token)):
                         tokenCad = tokenCad + token[i]+ '. '
                     self.log.info("token => %s" % tokenCad)
                     self.publishSlack(cmd = '%s@%s.From:%s. Rep' % (token[1],token[3],token[5]),args = txtR)
