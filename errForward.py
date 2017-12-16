@@ -84,7 +84,7 @@ class ErrForward(BotPlugin):
         else:
             frm = "-"
 
-        text = "User:%s.Host:%s.From:%s %s: '%s'" % (userName, userHost, frm, cmd, args)
+        text = "User:%s.Host:%s.From:%s. %s: '%s'" % (userName, userHost, frm, cmd, args)
         return(self['sc'].api_call(
               "chat.postMessage",
                channel = chan,
@@ -133,7 +133,7 @@ class ErrForward(BotPlugin):
                         reply = method(msg, args) 
                         if reply:
                             txtR = txtR + reply
-                    self.publishSlack(cmd = '%s@%s Rep' % (token[1],token[3]),args = txtR)
+                    self.publishSlack(cmd = '%s@%s.User:%s. Rep' % (token[1],token[3],token[5]),args = txtR)
 
                     self.log.debug(reply)
                     self.deleteSlack(chan, msg['ts'])
