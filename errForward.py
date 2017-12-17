@@ -139,9 +139,9 @@ class ErrForward(BotPlugin):
                             txtR = txtR + reply
                     for i in range(len(token)): 
                         self.log.info("[%d] %s" % (i, token[i]))
-                    self.publishSlack(cmd = 'Test: %s' % token[1])
-                    self.publishSlack(cmd = 'Test: %s' % token[3])
-                    self.publishSlack(cmd = 'Test: %s' % token[5])
+                    #self.publishSlack(cmd = 'Test: %s' % token[1])
+                    #self.publishSlack(cmd = 'Test: %s' % token[3])
+                    #self.publishSlack(cmd = 'Test: %s' % token[5])
                     self.publishSlack(cmd = '%s@%s.From:%s. Rep' % (token[1],token[3],token[5]),args = txtR)
 
                     self.log.debug(reply)
