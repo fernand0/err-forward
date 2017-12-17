@@ -99,9 +99,10 @@ class ErrForward(BotPlugin):
         return('')
 
     def readSlack(self):
+        self.publishSlack(cmd = 'Msg', args = 'Hello 2! from %s' % self.getMyIP())
         self.log.info('Start reading Slack')
         chan = self.normalizedChan(self._check_config('channel'))
-        history = self['sc'].api_call( "channels.history", channel=chan)
+        history = self['sc'].api_call("channels.history", channel=chan)
         for msg in history['messages']: 
             self.log.info(msg['text'])
             pos = msg['text'].find('Cmd')
