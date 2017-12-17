@@ -162,7 +162,7 @@ class ErrForward(BotPlugin):
                         self.log.info('posIFrom %d' % posIFrom)
                         if posIFrom >= 0:
                             posFFrom = msg['text'].find('. ', posIFrom)
-                            yield("posIFrom %s" % msg['text'][posIFrom:posFFrom])
+                            #yield("posIFrom %s" % msg['text'][posIFrom:posFFrom])
                         self.log.info('reply From %s' % msg['text'][posIFrom+5:posFFrom])
                         replies = msg['text'][pos+len('Rep:')+2:]
                         for reply in replies.split('\n'):
