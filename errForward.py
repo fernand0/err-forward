@@ -104,15 +104,12 @@ class ErrForward(BotPlugin):
         chan = self.normalizedChan(self._check_config('channel'))
         history = self['sc'].api_call("channels.history", channel=chan)
         for msg in history['messages']: 
-            self.log.info(msg['text'])
             pos = msg['text'].find('Cmd')
             token = re.split(':|\.| ', msg['text']) 
             tokenCad =''
             for i in range(len(token)):
                 tokenCad = tokenCad + token[i]+ '. '
-            self.log.info("tokenCad => %s" % tokenCad)
             if pos >= 0: 
-                self.log.debug('Msg -%s-' % msg['text'][pos+5+1:-1])
                 listCommands = self._bot.all_commands
                 cmdM = msg['text'][pos+5+1:-1]
                 if not cmdM.startswith(self._bot.bot_config.BOT_PREFIX): 
@@ -123,7 +120,6 @@ class ErrForward(BotPlugin):
                 else:
                     cmd = cmdM[1:]
                 args = cmdM[len(cmd)+1+1:]
-                self.log.debug('Msg-cmd -%s-' % cmd)
                 if cmd in listCommands:
                     self.log.debug("I'd execute -%s- with argument -%s-" 
                             % (cmd, args))
@@ -138,30 +134,20 @@ class ErrForward(BotPlugin):
                         reply = method(msg, args) 
                         if reply:
                             txtR = txtR + reply
-                    for i in range(len(token)): 
-                        self.log.info("[%d] %s" % (i, token[i]))
                     self.publishSlack(cmd = '%s@%s.From:%s. Rep' % (token[1],token[3],token[5]),args = txtR)
 
-                    self.log.debug(reply)
-                    #self.deleteSlack(chan, msg['ts'])
+                    self.deleteSlack(chan, msg['ts'])
             else:
                 pos = msg['text'].find('Rep')
-                self.log.info('reply -> %s' % msg['text'])
                 if pos >= 0:
-                    self.log.info('pos -> %d' % pos)
                     userName = pwd.getpwuid(os.getuid())[0]
                     userHost = os.uname()[1]
-                    self.log.info('username -> %s %s %d' % (userName, userHost, pos))
                     posMe = msg['text'].find(userName+'@'+userHost)
                     if (posMe >= 0):
                         # It's for me
                         posIFrom = msg['text'].find('From', posMe)
-                        self.log.info('Reply: %s' % msg['text'])
-                        self.log.info('posIFrom %d' % posIFrom)
                         if posIFrom >= 0:
                             posFFrom = msg['text'].find('. ', posIFrom)
-                            #yield("posIFrom %s" % msg['text'][posIFrom:posFFrom])
-                        self.log.info('reply From %s' % msg['text'][posIFrom+5:posFFrom])
                         msgFrom = msg['text'][posIFrom+5:posFFrom]
                         replies = msg['text'][pos+len('Rep:')+2:]
                         for reply in replies.split('\n'):
