@@ -148,6 +148,7 @@ class ErrForward(BotPlugin):
                 pos = msg['text'].find('Rep')
                 self.log.info('reply -> %s' % msg['text'])
                 if pos >= 0:
+                    self.log.info('pos -> %d' % pos)
                     userName = pwd.getpwuid(os.getuid())[0]
                     userHost = os.uname()[1]
                     self.log.info('username -> %s %s %d' % (userName, userHost, pos))
