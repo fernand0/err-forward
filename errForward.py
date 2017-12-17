@@ -150,7 +150,7 @@ class ErrForward(BotPlugin):
                 if pos >= 0:
                     userName = pwd.getpwuid(os.getuid())[0]
                     userHost = os.uname()[1]
-                    self.log.info('username -> %s %s %d' % (userName, userHost, pos)
+                    self.log.info('username -> %s %s %d' % (userName, userHost, pos))
                     posMe = msg['text'].find(userName+'@'+userHost)
                     if (posMe >= 0):
                         # It's for me
