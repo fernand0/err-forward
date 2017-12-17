@@ -162,13 +162,11 @@ class ErrForward(BotPlugin):
                             posFFrom = msg['text'].find('. ', posIFrom)
                             #yield("posIFrom %s" % msg['text'][posIFrom:posFFrom])
                         self.log.info('reply From %s' % msg['text'][posIFrom+5:posFFrom])
+                        msgFrom = msg['text'][posIFrom+5:posFFrom]
                         replies = msg['text'][pos+len('Rep:')+2:]
                         for reply in replies.split('\n'):
-                            posIFrom = reply.find('From')
-                            self.log.info('Reply: %s' % reply)
-                            self.log.info('posIFrom %d' % posIFrom)
                             if posIFrom >= 0:
-                                botAdmin = self._bot.build_identifier(reply[posIFrom+5:posFFrom])
+                                botAdmin = self._bot.build_identifier(msgFrom)
                             else:
                                 botAdmin = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
                             self.send(botAdmin, '{0}'.format(reply))
