@@ -155,7 +155,7 @@ class ErrForward(BotPlugin):
                     posMe = msg['text'].find(userName+'@'+userHost)
                     if (posMe >= 0):
                         # It's for me
-                        posIFrom = msg['text'].find('From', posMe+len(userName+'@'+userHost)+3)
+                        posIFrom = msg['text'].find('From', posMe)
                         self.log.info('Reply: %s' % msg['text'])
                         self.log.info('posIFrom %d' % posIFrom)
                         if posIFrom >= 0:
