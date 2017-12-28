@@ -121,7 +121,7 @@ class ErrForward(BotPlugin):
                 argsJ = msgJ['args']
                 userNameJ = msgJ['userName'] 
                 userHostJ = msgJ['userHost']
-                frm = msgJ['frm']
+                frmJ = msgJ['frm']
                 cmdJ = msgJ['cmd']
                 argsJ = msgJ['args']
                 self.log.info("End Converting")
@@ -187,7 +187,7 @@ class ErrForward(BotPlugin):
                         if reply:
                             txtR = txtR + reply
                     self.publishSlack(cmd = 'Rep', usr= userNameJ,
-                            host=userHostJ,frm = frm,args = txtR)
+                            host=userHostJ,frm = frmJ,args = txtR)
 
                     self.deleteSlack(chan, msg['ts'])
 
