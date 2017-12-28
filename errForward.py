@@ -88,8 +88,8 @@ class ErrForward(BotPlugin):
         if not frm: 
             frm = "-"
 
-        msg['userName'] = userName
-        msg['userHost'] = userHost
+        msg['userName'] = usr
+        msg['userHost'] = host
         msg['frm'] = str(frm)
         msg['cmd'] = cmd
         msg['args'] = args
