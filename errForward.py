@@ -5,6 +5,7 @@ import os, pwd
 import datetime
 import inspect
 import re
+import json
 
 def end(msg=""):
     return("END"+msg)
@@ -37,6 +38,9 @@ class ErrForward(BotPlugin):
         slack_token = config["Slack"].get('api-key')
         
         self['sc'] = SlackClient(slack_token)
+        self['chan'] = str(self._check_config('channel'))
+        self['userName'] = pwd.getpwuid(os.getuid())[0]
+        self['userHost'] = os.uname()[1]
 
         self.publishSlack(cmd = 'Msg', args = 'Hello! from %s' % self.getMyIP())
         self.start_poller(60, self.readSlack)
@@ -69,27 +73,33 @@ class ErrForward(BotPlugin):
                 return None
 
     def callback_message(self, mess):
-        userName = pwd.getpwuid(os.getuid())[0]
-        userHost = os.uname()[1]
+        userName = self['userName']
+        userHost = self['userHost']
         if (mess.body.find(userName) == -1) or (mess.body.find(hostName) == -1):
             yield("Trying!")
 
     def publishSlack(self, mess = "", cmd ="", args =""):
+        chan = self['chan']
+        userName = self['userName']
+        userHost = self['userHost']
+        msg = {}
 
-        chan = str(self._check_config('channel'))
-        userName = pwd.getpwuid(os.getuid())[0]
-        userHost = os.uname()[1]
         if mess: 
             frm = mess.frm
         else:
             frm = "-"
 
+        msg['userName'] = userName
+        msg['userHost'] = userHost
+        msg['frm'] = str(frm)
+        msg['cmd'] = cmd
+        msg['args'] = args
+
+
         text = "User:%s.Host:%s.From:%s. %s: '%s'" % (userName, userHost, frm, cmd, args)
-        return(self['sc'].api_call(
-              "chat.postMessage",
-               channel = chan,
-               text = text
-               ))
+        self['sc'].api_call( "chat.postMessage", channel = chan, text = text)
+        msgJ = json.dumps(msg)
+        self['sc'].api_call( "chat.postMessage", channel = chan, text = msgJ)
 
     def normalizedChan(self, chan): 
         chanList = self['sc'].api_call("channels.list")['channels'] 
@@ -104,6 +114,15 @@ class ErrForward(BotPlugin):
         chan = self.normalizedChan(self._check_config('channel'))
         history = self['sc'].api_call("channels.history", channel=chan)
         for msg in history['messages']: 
+            try:
+                msgJ = json.loads(msg)
+                userName = msgJ['userName'] 
+                userHost = msgJ['userHost']
+                frm = msgJ['frm']
+                cmdJ = msgJ['cmd']
+                argsJ = msgJ['args']
+            except:
+                msgJ = ""
             pos = msg['text'].find('Cmd')
             token = re.split(':|\.| ', msg['text']) 
             tokenCad =''
@@ -123,6 +142,11 @@ class ErrForward(BotPlugin):
                 if cmd in listCommands:
                     self.log.debug("I'd execute -%s- with argument -%s-" 
                             % (cmd, args))
+                    if msgJ:
+                        self.log.info("Equal :", (msgJ == msg) 
+                            and (args == argsJ) and (cmd == cmdJ) 
+                            and (userName == token[1]) 
+                            and (userHost == token[3]) and (frm == token[5]))
                     method = listCommands[cmd]
                     txtR = ''
                     if inspect.isgeneratorfunction(method): 
