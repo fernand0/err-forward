@@ -179,17 +179,17 @@ class ErrForward(BotPlugin):
 
                 self.log.debug("Cmd: %s"% cmd)
                 if cmd in listCommands:
-                    self.log.debug("II'd execute -%s- with argument -%s-" 
-                            % (cmd, args))
+                    self.log.debug("II'd execute -%s- with argument -%s- msgJ %s frmJ %s" 
+                            % (cmd, args, msgJ, frmJ))
                     method = listCommands[cmd]                   
                     txtR = ''
                     if inspect.isgeneratorfunction(method): 
-                        replies = method(msg, args) 
+                        replies = method("", args) 
                         for reply in replies: 
                             if isinstance(reply, str):
                                 txtR = txtR + '\n' + reply 
                     else: 
-                        reply = method(msg, args) 
+                        reply = method("", args) 
                         if reply:
                             txtR = txtR + reply
                     self.publishSlack(cmd = 'Rep', usr= userNameJ,
