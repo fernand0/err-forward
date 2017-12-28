@@ -114,21 +114,27 @@ class ErrForward(BotPlugin):
         chan = self.normalizedChan(self._check_config('channel'))
         history = self['sc'].api_call("channels.history", channel=chan)
         for msg in history['messages']: 
+            self.log.info(msg)
             try:
-                msgJ = json.loads(msg)
+                self.log.info("Converting args")
+                msgJ = json.loads(msg['text'])
+                argsJ = msgJ['args']
                 userName = msgJ['userName'] 
                 userHost = msgJ['userHost']
                 frm = msgJ['frm']
                 cmdJ = msgJ['cmd']
                 argsJ = msgJ['args']
+                self.log.info("End Converting")
             except:
+                self.log.info("Exception")
                 msgJ = ""
             pos = msg['text'].find('Cmd')
+            self.log.info("Pos: %d"% pos)
             token = re.split(':|\.| ', msg['text']) 
             tokenCad =''
             for i in range(len(token)):
                 tokenCad = tokenCad + token[i]+ '. '
-            if pos >= 0: 
+            if pos >= 0 and not (msg['text'][0] == '{'): 
                 listCommands = self._bot.all_commands
                 cmdM = msg['text'][pos+5+1:-1]
                 if not cmdM.startswith(self._bot.bot_config.BOT_PREFIX): 
@@ -139,14 +145,10 @@ class ErrForward(BotPlugin):
                 else:
                     cmd = cmdM[1:]
                 args = cmdM[len(cmd)+1+1:]
+                self.log.debug("Cmd: %s"% cmd)
                 if cmd in listCommands:
                     self.log.debug("I'd execute -%s- with argument -%s-" 
                             % (cmd, args))
-                    if msgJ:
-                        self.log.info("Equal :", (msgJ == msg) 
-                            and (args == argsJ) and (cmd == cmdJ) 
-                            and (userName == token[1]) 
-                            and (userHost == token[3]) and (frm == token[5]))
                     method = listCommands[cmd]
                     txtR = ''
                     if inspect.isgeneratorfunction(method): 
@@ -161,6 +163,36 @@ class ErrForward(BotPlugin):
                     self.publishSlack(cmd = '%s@%s.From:%s. Rep' % (token[1],token[3],token[5]),args = txtR)
 
                     self.deleteSlack(chan, msg['ts'])
+            elif pos >=0:                    
+                listCommands = self._bot.all_commands
+                cmdM = argsJ
+                if not cmdM.startswith(self._bot.bot_config.BOT_PREFIX): 
+                    return ""
+                posE = cmdM.find(' ')
+                if posE > 0:
+                    cmd = cmdM[1:posE]
+                else:
+                    cmd = cmdM[1:] 
+                args = cmdM[len(cmd)+1+1:]
+                self.log.debug("Cmd: %s"% cmd)
+                if cmd in listCommands:
+                    self.log.debug("I'd execute -%s- with argument -%s-" 
+                            % (cmd, args))
+                    method = listCommands[cmd]                   
+                    txtR = ''
+                    if inspect.isgeneratorfunction(method): 
+                        replies = method(msg, args) 
+                        for reply in replies: 
+                            if isinstance(reply, str):
+                                txtR = txtR + '\n' + reply 
+                    else: 
+                        reply = method(msg, args) 
+                        if reply:
+                            txtR = txtR + reply
+                    self.publishSlack(cmd = '%s@%s.From:%s. Rep' % (userName,userHost,frm),args = txtR)
+
+                    self.deleteSlack(chan, msg['ts'])
+
             else:
                 pos = msg['text'].find('Rep')
                 if pos >= 0:
