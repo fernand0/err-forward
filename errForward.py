@@ -119,8 +119,8 @@ class ErrForward(BotPlugin):
                 self.log.info("Converting args")
                 msgJ = json.loads(msg['text'])
                 argsJ = msgJ['args']
-                userName = msgJ['userName'] 
-                userHost = msgJ['userHost']
+                userNameJ = msgJ['userName'] 
+                userHostJ = msgJ['userHost']
                 frm = msgJ['frm']
                 cmdJ = msgJ['cmd']
                 argsJ = msgJ['args']
@@ -186,8 +186,8 @@ class ErrForward(BotPlugin):
                         reply = method(msg, args) 
                         if reply:
                             txtR = txtR + reply
-                    self.publishSlack(cmd = 'Rep', usr= userName,
-                            host=userHost,frm = frm,args = txtR)
+                    self.publishSlack(cmd = 'Rep', usr= userNameJ,
+                            host=userHostJ,frm = frm,args = txtR)
 
                     self.deleteSlack(chan, msg['ts'])
 
@@ -212,7 +212,7 @@ class ErrForward(BotPlugin):
                             self.send(botAdmin, '{0}'.format(reply))
                         self.deleteSlack(chan, msg['ts'])
                 elif pos >=0:                    
-                    if (userName == self['userName']) and (userHost == self['userHost']):
+                    if (userNameJ == self['userName']) and (userHostJ == self['userHost']):
                         for reply in replies.split('\n'):
                             if frm:
                                 botAdmin = self._bot.build_identifier(frm)
