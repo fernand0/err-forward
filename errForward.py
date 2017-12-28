@@ -135,7 +135,7 @@ class ErrForward(BotPlugin):
             tokenCad =''
             for i in range(len(token)):
                 tokenCad = tokenCad + token[i]+ '. '
-            if pos >= 0 and not (msg['text'][0] == '{'): 
+            if (pos >= 0) and not (msg['text'][0] == '{'): 
                 listCommands = self._bot.all_commands
                 cmdM = msg['text'][pos+5+1:-1]
                 if not cmdM.startswith(self._bot.bot_config.BOT_PREFIX): 
@@ -170,11 +170,17 @@ class ErrForward(BotPlugin):
                 cmdM = argsJ
                 if not cmdM.startswith(self._bot.bot_config.BOT_PREFIX): 
                     return ""
-                cmd = cmdJ 
-                args = argsJ
+                cmdM = argsJ
+                posE = cmdM.find(' ')
+                if posE > 0:
+                    cmd = cmdM[1:posE]
+                else:
+                    cmd = cmdM[1:]
+                args = cmdM[len(cmd)+1+1:]
+
                 self.log.debug("Cmd: %s"% cmd)
                 if cmd in listCommands:
-                    self.log.debug("I'd execute -%s- with argument -%s-" 
+                    self.log.debug("II'd execute -%s- with argument -%s-" 
                             % (cmd, args))
                     method = listCommands[cmd]                   
                     txtR = ''
@@ -191,13 +197,12 @@ class ErrForward(BotPlugin):
                             host=userHostJ,frm = frmJ,args = txtR)
 
                     self.deleteSlack(chan, msg['ts'])
-
             else:
                 pos = msg['text'].find('Rep')
                 if pos >= 0 and not (msg['text'][0] == '{'): 
                     userName = self['userName']
                     userHost = self['userHost']
-                    posMe = cmdJ.find(userName+'@'+userHost)
+                    posMe = msg['text'].find(userName+'@'+userHost)
                     if (posMe >= 0):
                         # It's for me
                         posIFrom = msg['text'].find('From', posMe)
@@ -217,7 +222,7 @@ class ErrForward(BotPlugin):
                         # It's for me
                         replies = argsJ 
                         for reply in replies.split('\n'):
-                            self.log.debug("frm",frmJ)
+                            self.log.debug("FRm",frmJ)
                             if not (frmJ == '-'):
                                 botAdmin = self._bot.build_identifier(frmJ)
                             else:
