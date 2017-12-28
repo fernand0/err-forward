@@ -212,17 +212,14 @@ class ErrForward(BotPlugin):
                             self.send(botAdmin, '{0}'.format(reply))
                         self.deleteSlack(chan, msg['ts'])
                 elif pos >=0:                    
-                    userName = self['userName']
-                    userHost = self['userHost']
-                    msgFrom = frm
-                    reples = argsJ
-                    for reply in replies.split('\n'):
-                        if frm:
-                            botAdmin = self._bot.build_identifier(msgFrom)
-                        else:
-                            botAdmin = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
-                        self.send(botAdmin, '{0}'.format(reply))
-                    self.deleteSlack(chan, msg['ts'])
+                    if (userName == self['userName']) and (userHost == self['userHost']):
+                        for reply in replies.split('\n'):
+                            if frm:
+                                botAdmin = self._bot.build_identifier(frm)
+                            else:
+                                botAdmin = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
+                            self.send(botAdmin, '{0}'.format(reply))
+                        self.deleteSlack(chan, msg['ts'])
 
 
         self.log.info('End reading Slack')
