@@ -216,7 +216,8 @@ class ErrForward(BotPlugin):
                         # It's for me
                         replies = argsJ 
                         for reply in replies.split('\n'):
-                            if frm:
+                            self.log.debug("frm",frm)
+                            if not (frm == '-'):
                                 botAdmin = self._bot.build_identifier(frm)
                             else:
                                 botAdmin = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
@@ -232,7 +233,7 @@ class ErrForward(BotPlugin):
     @botcmd
     def forward(self, mess, args):
         #token = re.split(':|\.', args) 
-        self.publishSlack(mess, cmd = 'Cmd' , args = args)
+        self.publishSlack(mess=mess, cmd = 'Cmd' , args = args)
 
     @botcmd
     def myIP(self, mess, args):
