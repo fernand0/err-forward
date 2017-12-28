@@ -85,9 +85,7 @@ class ErrForward(BotPlugin):
         msg = {}
         self.log.debug("IN FOrward %s"%mess)
 
-        if mess: 
-            frm = mess.frm
-        else:
+        if not frm: 
             frm = "-"
 
         msg['userName'] = userName
@@ -193,7 +191,7 @@ class ErrForward(BotPlugin):
                         if reply:
                             txtR = txtR + reply
                     self.publishSlack(cmd = 'Rep', usr= userNameJ,
-                            host=userHostJ,frm = frmJ,args = txtR)
+                            host=userHostJ, frm = frmJ, args = txtR)
 
                     self.deleteSlack(chan, msg['ts'])
             else:
