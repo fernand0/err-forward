@@ -216,9 +216,9 @@ class ErrForward(BotPlugin):
                         # It's for me
                         replies = argsJ 
                         for reply in replies.split('\n'):
-                            self.log.debug("frm",frm)
-                            if not (frm == '-'):
-                                botAdmin = self._bot.build_identifier(frm)
+                            self.log.debug("frm",frmJ)
+                            if not (frmJ == '-'):
+                                botAdmin = self._bot.build_identifier(frmJ)
                             else:
                                 botAdmin = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
                             self.send(botAdmin, '{0}'.format(reply))
