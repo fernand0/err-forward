@@ -80,12 +80,12 @@ class ErrForward(BotPlugin):
 
     def publishSlack(self, usr="", host="", frm="", mess = "", cmd ="", args =""):
         chan = self['chan']
-        userName = self['userName']
-        userHost = self['userHost']
         msg = {}
         self.log.debug("IN FOrward %s"%mess)
 
-        if not frm: 
+        if mess:
+            frm = mess.frm
+        else:
             frm = "-"
 
         msg['userName'] = usr
@@ -238,7 +238,7 @@ class ErrForward(BotPlugin):
     def forward(self, mess, args):
         #token = re.split(':|\.', args) 
         self.log.debug("FOrward %s"%mess)
-        self.publishSlack(mess=mess, cmd = 'Cmd' , args = args)
+        self.publishSlack(mess=mess, usr=self['userName'], host= self['userHost'], cmd = 'Cmd' , args = args)
 
     @botcmd
     def myIP(self, mess, args):
