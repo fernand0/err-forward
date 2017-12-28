@@ -79,22 +79,17 @@ class ErrForward(BotPlugin):
             yield("Trying!")
 
     def publishSlack(self, usr="", host="", frm="", mess = "", cmd ="", args =""):
-        chan = self['chan']
-        msg = {}
-        self.log.debug("IN FOrward %s"%mess)
 
         if mess:
             frm = mess.frm
         else:
             frm = "-"
 
-        msg['userName'] = usr
-        msg['userHost'] = host
-        msg['frm'] = str(frm)
-        msg['cmd'] = cmd
-        msg['args'] = args
-
+        msg = {'userName': usr, 'userHost': host, 
+                'frm': str(frm), 'cmd': cmd, 'args': args }
         msgJ = json.dumps(msg)
+
+        chan = self['chan']
         self['sc'].api_call( "chat.postMessage", channel = chan, text = msgJ)
 
     def normalizedChan(self, chan): 
@@ -107,10 +102,11 @@ class ErrForward(BotPlugin):
     def readSlack(self):
         # Don't put yield in this function!
         self.log.info('Start reading Slack')
+
         chan = self.normalizedChan(self._check_config('channel'))
         history = self['sc'].api_call("channels.history", channel=chan)
+
         for msg in history['messages']: 
-            self.log.info(msg)
             try:
                 self.log.info("Converting args")
                 msgJ = json.loads(msg['text'])
@@ -121,61 +117,66 @@ class ErrForward(BotPlugin):
                 cmdJ = msgJ['cmd']
                 argsJ = msgJ['args']
                 self.log.info("End Converting")
-            except:
-                self.log.info("Exception")
-                msgJ = ""
-            pos = msg['text'].find('Cmd')
-            self.log.info("Pos: %d"% pos)
-            token = re.split(':|\.| ', msg['text']) 
-            tokenCad =''
-            for i in range(len(token)):
-                tokenCad = tokenCad + token[i]+ '. '
-            if msgJ and cmdJ == 'Cmd':                    
-                listCommands = self._bot.all_commands
-                cmdM = argsJ
-                if not cmdM.startswith(self._bot.bot_config.BOT_PREFIX): 
-                    return ""
-                cmdM = argsJ
-                posE = cmdM.find(' ')
-                if posE > 0:
-                    cmd = cmdM[1:posE]
-                else:
-                    cmd = cmdM[1:]
-                args = cmdM[len(cmd)+1+1:]
+    
+                if cmdJ == 'Cmd':                    
+                    # It's a command
+                    listCommands = self._bot.all_commands
+                    if argsJ.startswith(self._bot.bot_config.BOT_PREFIX): 
+                        # Consider avoiding it (?)
+                        # Maybe we could also have separated the command from
+                        # args
+                        posE = argsJ.find(' ')
+                        if posE > 0:
+                            cmd = argsJ[1:posE]
+                        else:
+                            cmd = argsJ[1:]
+                        args = argsJ[len(cmd)+1+1:]
+    
+                        self.log.debug("Cmd: %s"% cmd)
+                        if cmd in listCommands:
+                            self.log.debug("I'd execute -%s- with argument -%s-"
+                                    % (cmd, args))
+                            method = listCommands[cmd]                   
+                            txtR = ''
+                            if inspect.isgeneratorfunction(method): 
+                                replies = method("", args) 
+                                for reply in replies: 
+                                    if isinstance(reply, str):
+                                        txtR = txtR + '\n' + reply 
+                            else: 
+                                reply = method("", args) 
+                                if isinstance(reply,str):
+                                    txtR = txtR + reply
+                                else:
+                                    txtR = txtR + str(reply)
 
-                self.log.debug("Cmd: %s"% cmd)
-                if cmd in listCommands:
-                    self.log.debug("I'd execute -%s- with argument -%s- msgJ %s frmJ %s" 
-                            % (cmd, args, msgJ, frmJ))
-                    method = listCommands[cmd]                   
-                    txtR = ''
-                    if inspect.isgeneratorfunction(method): 
-                        replies = method("", args) 
-                        for reply in replies: 
-                            if isinstance(reply, str):
-                                txtR = txtR + '\n' + reply 
-                    else: 
-                        reply = method("", args) 
-                        if reply:
-                            txtR = txtR + reply
-                    self.publishSlack(cmd = 'Rep', usr= userNameJ,
-                            host=userHostJ, frm = frmJ, args = txtR)
-
-                    self.deleteSlack(chan, msg['ts'])
-            elif msgJ and cmdJ == 'Rep':                    
-                    self.log.debug("UserInfo: %s %s %s %s" %(userNameJ, self['userName'], userHostJ, self['userHost']))
-                    if (userNameJ == self['userName']) and (userHostJ == self['userHost']):
+                            self.publishSlack(cmd = 'Rep', usr= userNameJ,
+                                    host=userHostJ, frm = frmJ, args = txtR)
+    
+                            self.deleteSlack(chan, msg['ts'])
+                elif cmdJ == 'Rep':                    
+                    # It's a reply
+                    if ((userNameJ == self['userName']) 
+                            and (userHostJ == self['userHost'])):
                         # It's for me
                         replies = argsJ 
                         for reply in replies.split('\n'):
                             self.log.debug("FRm",frmJ)
                             if not (frmJ == '-'):
-                                botAdmin = self._bot.build_identifier(frmJ)
+                                msgTo = self._bot.build_identifier(frmJ)
                             else:
-                                botAdmin = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
-                            self.send(botAdmin, '{0}'.format(reply))
-                        self.deleteSlack(chan, msg['ts'])
+                                msgTo = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
 
+                            self.send(msgTo, '{0}'.format(reply))
+
+                        self.deleteSlack(chan, msg['ts'])
+                    #else
+                    # Maybe we could clean old messages here?
+                    # Hello
+                    # Messages not executed
+                    # ...
+            except:
+                self.log.info("Error in msg: %s" % msg)
         self.log.info('End reading Slack')
 
     def deleteSlack(self, theChannel, ts):
@@ -183,8 +184,9 @@ class ErrForward(BotPlugin):
 
     @botcmd
     def forward(self, mess, args):
-        self.log.debug("FOrward %s"%mess)
+        self.log.debug("Begin forward %s"%mess)
         self.publishSlack(mess=mess, usr=self['userName'], host= self['userHost'], cmd = 'Cmd' , args = args)
+        self.log.debug("End forward %s"%mess)
 
     @botcmd
     def myIP(self, mess, args):
