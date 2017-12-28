@@ -96,9 +96,8 @@ class ErrForward(BotPlugin):
         msg['cmd'] = cmd
         msg['args'] = args
 
-
-        text = "User:%s.Host:%s.From:%s. %s: '%s'" % (userName, userHost, frm, cmd, args)
-        self['sc'].api_call( "chat.postMessage", channel = chan, text = text)
+        #text = "User:%s.Host:%s.From:%s. %s: '%s'" % (userName, userHost, frm, cmd, args)
+        #self['sc'].api_call( "chat.postMessage", channel = chan, text = text)
         msgJ = json.dumps(msg)
         self['sc'].api_call( "chat.postMessage", channel = chan, text = msgJ)
 
