@@ -213,6 +213,8 @@ class ErrForward(BotPlugin):
                         self.deleteSlack(chan, msg['ts'])
                 elif pos >=0:                    
                     if (userNameJ == self['userName']) and (userHostJ == self['userHost']):
+                        # It's for me
+                        replies = argsJ 
                         for reply in replies.split('\n'):
                             if frm:
                                 botAdmin = self._bot.build_identifier(frm)
