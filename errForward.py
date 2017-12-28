@@ -215,6 +215,7 @@ class ErrForward(BotPlugin):
                 #            self.send(botAdmin, '{0}'.format(reply))
                 #        self.deleteSlack(chan, msg['ts'])
                 if msgJ and cmdJ == 'Rep':                    
+                    self.log.debug("UserInfo: %s %s %s %s" %(userNameJ, self['userName'], userHostJ, self['userHost']))
                     if (userNameJ == self['userName']) and (userHostJ == self['userHost']):
                         # It's for me
                         replies = argsJ 
