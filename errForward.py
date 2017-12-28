@@ -78,7 +78,7 @@ class ErrForward(BotPlugin):
         if (mess.body.find(userName) == -1) or (mess.body.find(hostName) == -1):
             yield("Trying!")
 
-    def publishSlack(self, mess = "", cmd ="", args =""):
+    def publishSlack(self, usr="", host="", frm="", mess = "", cmd ="", args =""):
         chan = self['chan']
         userName = self['userName']
         userHost = self['userHost']
@@ -160,7 +160,8 @@ class ErrForward(BotPlugin):
                         reply = method(msg, args) 
                         if reply:
                             txtR = txtR + reply
-                    self.publishSlack(cmd = '%s@%s.From:%s. Rep' % (token[1],token[3],token[5]),args = txtR)
+                    self.publishSlack(cmd = 'Rep', usr= token[1],
+                            host = token[3], frm = token[5],args = txtR)
 
                     self.deleteSlack(chan, msg['ts'])
             elif pos >=0:                    
@@ -168,12 +169,8 @@ class ErrForward(BotPlugin):
                 cmdM = argsJ
                 if not cmdM.startswith(self._bot.bot_config.BOT_PREFIX): 
                     return ""
-                posE = cmdM.find(' ')
-                if posE > 0:
-                    cmd = cmdM[1:posE]
-                else:
-                    cmd = cmdM[1:] 
-                args = cmdM[len(cmd)+1+1:]
+                cmd = cmdJ 
+                args = argsJ
                 self.log.debug("Cmd: %s"% cmd)
                 if cmd in listCommands:
                     self.log.debug("I'd execute -%s- with argument -%s-" 
@@ -189,16 +186,17 @@ class ErrForward(BotPlugin):
                         reply = method(msg, args) 
                         if reply:
                             txtR = txtR + reply
-                    self.publishSlack(cmd = '%s@%s.From:%s. Rep' % (userName,userHost,frm),args = txtR)
+                    self.publishSlack(cmd = 'Rep', usr= userName,
+                            host=userHost,frm = frm,args = txtR)
 
                     self.deleteSlack(chan, msg['ts'])
 
             else:
                 pos = msg['text'].find('Rep')
-                if pos >= 0:
-                    userName = pwd.getpwuid(os.getuid())[0]
-                    userHost = os.uname()[1]
-                    posMe = msg['text'].find(userName+'@'+userHost)
+                if pos >= 0 and not (msg['text'][0] == '{'): 
+                    userName = self['userName']
+                    userHost = self['userHost']
+                    posMe = cmdJ.find(userName+'@'+userHost)
                     if (posMe >= 0):
                         # It's for me
                         posIFrom = msg['text'].find('From', posMe)
@@ -213,6 +211,19 @@ class ErrForward(BotPlugin):
                                 botAdmin = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
                             self.send(botAdmin, '{0}'.format(reply))
                         self.deleteSlack(chan, msg['ts'])
+                elif pos >=0:                    
+                    userName = self['userName']
+                    userHost = self['userHost']
+                    msgFrom = frm
+                    reples = argsJ
+                    for reply in replies.split('\n'):
+                        if frm:
+                            botAdmin = self._bot.build_identifier(msgFrom)
+                        else:
+                            botAdmin = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
+                        self.send(botAdmin, '{0}'.format(reply))
+                    self.deleteSlack(chan, msg['ts'])
+
 
         self.log.info('End reading Slack')
 
