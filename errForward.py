@@ -83,6 +83,7 @@ class ErrForward(BotPlugin):
         userName = self['userName']
         userHost = self['userHost']
         msg = {}
+        self.log.debug("IN FOrward %s"%mess)
 
         if mess: 
             frm = mess.frm
@@ -233,6 +234,7 @@ class ErrForward(BotPlugin):
     @botcmd
     def forward(self, mess, args):
         #token = re.split(':|\.', args) 
+        self.log.debug("FOrward %s"%mess)
         self.publishSlack(mess=mess, cmd = 'Cmd' , args = args)
 
     @botcmd
