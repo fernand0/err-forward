@@ -109,12 +109,19 @@ class ErrForward(BotPlugin):
         for msg in history['messages']: 
             try:
                 self.log.info("Converting args")
+                self.log.info("Msg: %s" % msg)
                 msgJ = json.loads(msg['text'])
+                self.log.debug("Converting args 1")
                 argsJ = msgJ['args']
+                self.log.debug("Converting args 2")
                 userNameJ = msgJ['userName'] 
+                self.log.debug("Converting args 3")
                 userHostJ = msgJ['userHost']
+                self.log.debug("Converting args 4")
                 frmJ = msgJ['frm']
+                self.log.debug("Converting args 5")
                 typJ = msgJ['typ']
+                self.log.debug("Converting args 6")
                 argsJ = msgJ['args']
                 self.log.info("End Converting")
     
@@ -125,12 +132,13 @@ class ErrForward(BotPlugin):
                         # Consider avoiding it (?)
                         # Maybe we could also have separated the command from
                         # args
-                        posE = argsJ.find(' ')
-                        if posE > 0:
-                            cmd = argsJ[1:posE]
-                        else:
-                            cmd = argsJ[1:]
-                        args = argsJ[len(cmd)+1+1:]
+                        cmd, args = cad.argsJ.split()
+                        #posE = argsJ.find(' ')
+                        #if posE > 0:
+                        #    cmd = argsJ[1:posE]
+                        #else:
+                        #    cmd = argsJ[1:]
+                        #args = argsJ[len(cmd)+1+1:]
     
                         self.log.debug("Cmd: %s"% cmd)
                         if cmd in listCommands:
@@ -148,7 +156,7 @@ class ErrForward(BotPlugin):
                                 if isinstance(reply,str):
                                     txtR = txtR + reply
                                 else:
-                                    txtR = txtR + str(reply)
+                                    txtR = txtR + json.dumps(reply)
 
                             self.publishSlack(typ = 'Rep', usr= userNameJ,
                                     host=userHostJ, frm = frmJ, args = txtR)
@@ -162,10 +170,18 @@ class ErrForward(BotPlugin):
                         replies = argsJ 
                         for reply in replies.split('\n'):
                             self.log.debug("FRm",frmJ)
+                            self.log.debug("Reply: %s " % reply)
                             if not (frmJ == '-'):
                                 msgTo = self._bot.build_identifier(frmJ)
                             else:
                                 msgTo = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
+                                if reply.startswith('{'):
+                                    # Is it a dictionary?
+                                    import ast
+                                    self.log.debug("Type: %s" %type(reply))
+                                    #reply = ast.ligeral_eval(reply)
+                                    #self.log.debug("Type: %s" %type(reply))
+                                    #reply = json.dumps(reply)
 
                             self.send(msgTo, '{0}'.format(reply))
 
