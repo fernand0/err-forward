@@ -132,11 +132,11 @@ class ErrForward(BotPlugin):
                         # Consider avoiding it (?)
                         # Maybe we could also have separated the command from
                         # args
-                        if argsJ.find(' ')>0:
-                           cmd, args = argsJ.split()
-                        else
-                           cmd = argsJ
-                           args = ""
+                        if argsJ.find(' ')>0: 
+                            cmd, args = argsJ.split() 
+                        else: 
+                            cmd = argsJ 
+                            args = ""
                         #posE = argsJ.find(' ')
                         #if posE > 0:
                         #    cmd = argsJ[1:posE]
