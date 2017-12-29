@@ -1,4 +1,5 @@
 from errbot import BotPlugin, botcmd, webhook
+from errbot.templating import tenv
 from slackclient import SlackClient
 import configparser
 import os, pwd
@@ -107,7 +108,7 @@ class ErrForward(BotPlugin):
         history = self['sc'].api_call("channels.history", channel=chan)
 
         for msg in history['messages']: 
-            try:
+            if True:
                 self.log.info("Converting args")
                 self.log.info("Msg: %s" % msg)
                 msgJ = json.loads(msg['text'])
@@ -139,6 +140,7 @@ class ErrForward(BotPlugin):
                             self.log.debug("I'd execute -%s- with argument -%s-"
                                     % (cmd, args))
                             method = listCommands[cmd]                   
+                            self.log.debug("template -%s-" % method._err_command_template)
                             txtR = ''
                             if inspect.isgeneratorfunction(method): 
                                 replies = method("", args) 
@@ -150,7 +152,9 @@ class ErrForward(BotPlugin):
                                 if isinstance(reply,str):
                                     txtR = txtR + reply
                                 else:
-                                    txtR = txtR + str(reply)
+                                    #txtR = txtR + str(reply)
+                                    self.log.debug("tenv -> %s%s" % (method._err_command_template,'.md'))
+                                    txtR = txtR + tenv().get_template(method._err_command_template+'.md').render(reply)
 
                             self.publishSlack(typ = 'Rep', usr= userNameJ,
                                     host=userHostJ, frm = frmJ, args = txtR)
@@ -186,7 +190,7 @@ class ErrForward(BotPlugin):
                     # Hello
                     # Messages not executed
                     # ...
-            except:
+            else:
                 self.log.info("Error in msg: %s" % msg)
         self.log.info('End reading Slack')
 
