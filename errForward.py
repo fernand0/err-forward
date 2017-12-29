@@ -152,7 +152,8 @@ class ErrForward(BotPlugin):
                                 if isinstance(reply,str):
                                     txtR = txtR + reply
                                 else:
-                                    #txtR = txtR + str(reply)
+                                    # What happens if ther is no template?
+                                    # https://github.com/errbotio/errbot/blob/master/errbot/core.py
                                     self.log.debug("tenv -> %s%s" % (method._err_command_template,'.md'))
                                     txtR = txtR + tenv().get_template(method._err_command_template+'.md').render(reply)
 
@@ -178,9 +179,9 @@ class ErrForward(BotPlugin):
                                 msgTo = self._bot.build_identifier(frmJ)
                             else:
                                 msgTo = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
-                                if reply.startswith('{'):
-                                    # Is it a dictionary?
-                                    reply = reply.replace('_','\_')
+                            if reply.startswith('{'):
+                                # Is it a dictionary?
+                                reply = reply.replace('_','\_')
 
                             self.send(msgTo, '{0}'.format(reply))
 
