@@ -146,6 +146,7 @@ class ErrForward(BotPlugin):
                         #args = argsJ[len(cmd)+1+1:]
     
                         self.log.debug("Cmd: %s"% cmd)
+                        self.log.debug("Cmd: %s"% listCommands)
                         if cmd in listCommands:
                             self.log.debug("I'd execute -%s- with argument -%s-"
                                     % (cmd, args))
