@@ -42,7 +42,7 @@ class ErrForward(BotPlugin):
         self['userName'] = pwd.getpwuid(os.getuid())[0]
         self['userHost'] = os.uname()[1]
 
-        self.publishSlack(cmd = 'Msg', args = 'Hello! from %s' % self.getMyIP())
+        self.publishSlack(typ = 'Msg', args = 'Hello! from %s' % self.getMyIP())
         self.start_poller(60, self.readSlack)
         self.log.info('Debería estar activo')
 
@@ -78,7 +78,7 @@ class ErrForward(BotPlugin):
         if (mess.body.find(userName) == -1) or (mess.body.find(hostName) == -1):
             yield("Trying!")
 
-    def publishSlack(self, usr="", host="", frm="", mess = "", cmd ="", args =""):
+    def publishSlack(self, usr="", host="", frm="", mess = "", typ ="", args =""):
 
         if mess:
             frm = mess.frm
@@ -86,7 +86,7 @@ class ErrForward(BotPlugin):
             frm = "-"
 
         msg = {'userName': usr, 'userHost': host, 
-                'frm': str(frm), 'cmd': cmd, 'args': args }
+                'frm': str(frm), 'typ': typ, 'args': args }
         msgJ = json.dumps(msg)
 
         chan = self['chan']
@@ -114,11 +114,11 @@ class ErrForward(BotPlugin):
                 userNameJ = msgJ['userName'] 
                 userHostJ = msgJ['userHost']
                 frmJ = msgJ['frm']
-                cmdJ = msgJ['cmd']
+                typJ = msgJ['typ']
                 argsJ = msgJ['args']
                 self.log.info("End Converting")
     
-                if cmdJ == 'Cmd':                    
+                if typJ == 'Cmd':                    
                     # It's a command
                     listCommands = self._bot.all_commands
                     if argsJ.startswith(self._bot.bot_config.BOT_PREFIX): 
@@ -154,7 +154,7 @@ class ErrForward(BotPlugin):
                                     host=userHostJ, frm = frmJ, args = txtR)
     
                             self.deleteSlack(chan, msg['ts'])
-                elif cmdJ == 'Rep':                    
+                elif typJ == 'Rep':                    
                     # It's a reply
                     if ((userNameJ == self['userName']) 
                             and (userHostJ == self['userHost'])):
@@ -185,7 +185,7 @@ class ErrForward(BotPlugin):
     @botcmd
     def forward(self, mess, args):
         self.log.debug("Begin forward %s"%mess)
-        self.publishSlack(mess=mess, usr=self['userName'], host= self['userHost'], cmd = 'Cmd' , args = args)
+        self.publishSlack(mess=mess, usr=self['userName'], host= self['userHost'], typ = 'Cmd' , args = args)
         self.log.debug("End forward %s"%mess)
 
     @botcmd
