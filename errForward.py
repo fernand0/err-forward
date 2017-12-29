@@ -150,7 +150,7 @@ class ErrForward(BotPlugin):
                                 else:
                                     txtR = txtR + str(reply)
 
-                            self.publishSlack(cmd = 'Rep', usr= userNameJ,
+                            self.publishSlack(typ = 'Rep', usr= userNameJ,
                                     host=userHostJ, frm = frmJ, args = txtR)
     
                             self.deleteSlack(chan, msg['ts'])
