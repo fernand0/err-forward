@@ -173,6 +173,7 @@ class ErrForward(BotPlugin):
                     if ((userNameJ == self['userName']) 
                             and (userHostJ == self['userHost'])):
                         # It's for me
+                        self.log.info("It's for me")
                         replies = argsJ 
                         for reply in replies.split('\n'):
                             self.log.debug("FRm",frmJ)
