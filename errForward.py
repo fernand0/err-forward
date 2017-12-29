@@ -162,7 +162,7 @@ class ErrForward(BotPlugin):
                                 if isinstance(reply,str):
                                     txtR = txtR + reply
                                 else:
-                                    txtR = txtR + '\n    '+str(reply)
+                                    txtR = txtR + str(reply)
 
                             self.publishSlack(typ = 'Rep', usr= userNameJ,
                                     host=userHostJ, frm = frmJ, args = txtR)
@@ -188,11 +188,7 @@ class ErrForward(BotPlugin):
                                 msgTo = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
                                 if reply.startswith('{'):
                                     # Is it a dictionary?
-                                    import ast
-                                    self.log.debug("Type: %s" %type(reply))
-                                    #reply = ast.ligeral_eval(reply)
-                                    #self.log.debug("Type: %s" %type(reply))
-                                    #reply = json.dumps(reply)
+                                    reply = reply.replace('_','\_')
 
                             self.send(msgTo, '{0}'.format(reply))
 
