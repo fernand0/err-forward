@@ -111,17 +111,11 @@ class ErrForward(BotPlugin):
                 self.log.info("Converting args")
                 self.log.info("Msg: %s" % msg)
                 msgJ = json.loads(msg['text'])
-                self.log.debug("Converting args 1")
                 argsJ = msgJ['args']
-                self.log.debug("Converting args 2")
                 userNameJ = msgJ['userName'] 
-                self.log.debug("Converting args 3")
                 userHostJ = msgJ['userHost']
-                self.log.debug("Converting args 4")
                 frmJ = msgJ['frm']
-                self.log.debug("Converting args 5")
                 typJ = msgJ['typ']
-                self.log.debug("Converting args 6")
                 argsJ = msgJ['args']
                 self.log.info("End Converting")
     
@@ -138,12 +132,6 @@ class ErrForward(BotPlugin):
                             cmd = argsJ
                             args = ""
                         cmd = cmd[1:]
-                        #posE = argsJ.find(' ')
-                        #if posE > 0:
-                        #    cmd = argsJ[1:posE]
-                        #else:
-                        #    cmd = argsJ[1:]
-                        #args = argsJ[len(cmd)+1+1:]
     
                         self.log.debug("Cmd: %s"% cmd)
                         self.log.debug("Cmd: %s"% listCommands)
