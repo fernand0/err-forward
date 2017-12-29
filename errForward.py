@@ -134,10 +134,10 @@ class ErrForward(BotPlugin):
                         # args
                         if argsJ.find(' ')>0: 
                             cmd, args = argsJ.split() 
-                            cmd = cmd[1:]
                         else: 
-                            cmd = argsJ 
+                            cmd = argsJ
                             args = ""
+                        cmd = cmd[1:]
                         #posE = argsJ.find(' ')
                         #if posE > 0:
                         #    cmd = argsJ[1:posE]
