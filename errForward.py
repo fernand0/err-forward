@@ -162,7 +162,7 @@ class ErrForward(BotPlugin):
                                 if isinstance(reply,str):
                                     txtR = txtR + reply
                                 else:
-                                    txtR = txtR + '<pre>'+str(reply)+'</pre>'
+                                    txtR = txtR + '\n    '+str(reply)
 
                             self.publishSlack(typ = 'Rep', usr= userNameJ,
                                     host=userHostJ, frm = frmJ, args = txtR)
