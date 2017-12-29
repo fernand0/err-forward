@@ -170,6 +170,7 @@ class ErrForward(BotPlugin):
                             self.deleteSlack(chan, msg['ts'])
                 elif typJ == 'Rep':                    
                     # It's a reply
+                    self.log.info("Is it for me=")
                     if ((userNameJ == self['userName']) 
                             and (userHostJ == self['userHost'])):
                         # It's for me
