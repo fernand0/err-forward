@@ -197,7 +197,7 @@ class ErrForward(BotPlugin):
     @botcmd
     def forward(self, mess, args):
         self.log.debug("Begin forward %s"%mess)
-        if cmd.find(' ') >= 0:
+        if args.find(' ') >= 0:
             cmd, argsS = args.split()
         else:
             cmd = args
