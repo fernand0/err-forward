@@ -87,7 +87,7 @@ class ErrForward(BotPlugin):
             frm = "-"
 
         msg = {'userName': usr, 'userHost': host, 
-                'frm': str(frm), 'typ': typ, 'args': args }
+                'frm': str(frm), 'typ': typ, 'cmd': cmd, 'args': args }
         msgJ = json.dumps(msg)
 
         chan = self['chan']
