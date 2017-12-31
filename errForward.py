@@ -79,7 +79,7 @@ class ErrForward(BotPlugin):
         if (mess.body.find(userName) == -1) or (mess.body.find(hostName) == -1):
             yield("Trying!")
 
-    def publishSlack(self, usr="", host="", frm="", mess = "", typ ="", args =""):
+    def publishSlack(self, usr="", host="", frm="", mess = "", typ ="", cmd = "", args =""):
 
         if mess:
             frm = mess.frm
@@ -117,38 +117,34 @@ class ErrForward(BotPlugin):
                 userHostJ = msgJ['userHost']
                 frmJ = msgJ['frm']
                 typJ = msgJ['typ']
+                cmdJ = msgJ['cmd']
                 argsJ = msgJ['args']
                 self.log.info("End Converting")
     
                 if typJ == 'Cmd':                    
                     # It's a command
                     listCommands = self._bot.all_commands
-                    if argsJ.startswith(self._bot.bot_config.BOT_PREFIX): 
+                    if cmdJ.startswith(self._bot.bot_config.BOT_PREFIX): 
                         # Consider avoiding it (?)
                         # Maybe we could also have separated the command from
                         # args
-                        if argsJ.find(' ')>0: 
-                            cmd, args = argsJ.split() 
-                        else: 
-                            cmd = argsJ
-                            args = ""
-                        cmd = cmd[1:]
+                        cmdJ = cmdJ[1:]
     
-                        self.log.debug("Cmd: %s"% cmd)
-                        self.log.debug("Cmd: %s"% listCommands)
-                        if cmd in listCommands:
+                        self.log.debug("Cmd: %s"% cmdJ)
+                        #self.log.debug("Cmd: %s"% listCommands)
+                        if cmdJ in listCommands:
                             self.log.debug("I'd execute -%s- with argument -%s-"
-                                    % (cmd, args))
-                            method = listCommands[cmd]                   
+                                    % (cmdJ, argsJ))
+                            method = listCommands[cmdJ]                   
                             self.log.debug("template -%s-" % method._err_command_template)
                             txtR = ''
                             if inspect.isgeneratorfunction(method): 
-                                replies = method("", args) 
+                                replies = method("", argsJ) 
                                 for reply in replies: 
                                     if isinstance(reply, str):
                                         txtR = txtR + '\n' + reply 
                             else: 
-                                reply = method("", args) 
+                                reply = method("", argsJ) 
                                 if isinstance(reply,str):
                                     txtR = txtR + reply
                                 else:
@@ -201,7 +197,8 @@ class ErrForward(BotPlugin):
     @botcmd
     def forward(self, mess, args):
         self.log.debug("Begin forward %s"%mess)
-        self.publishSlack(mess=mess, usr=self['userName'], host= self['userHost'], typ = 'Cmd' , args = args)
+        cmd, argsS = args.split()
+        self.publishSlack(mess=mess, usr=self['userName'], host= self['userHost'], typ = 'Cmd' , cmd = cmd, args = argsS)
         self.log.debug("End forward %s"%mess)
 
     @botcmd
