@@ -197,7 +197,11 @@ class ErrForward(BotPlugin):
     @botcmd
     def forward(self, mess, args):
         self.log.debug("Begin forward %s"%mess)
-        cmd, argsS = args.split()
+        if cmd.find(' ') >= 0:
+            cmd, argsS = args.split()
+        else:
+            cmd = args
+            argsS = ""
         self.publishSlack(mess=mess, usr=self['userName'], host= self['userHost'], typ = 'Cmd' , cmd = cmd, args = argsS)
         self.log.debug("End forward %s"%mess)
 
