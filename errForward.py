@@ -195,6 +195,10 @@ class ErrForward(BotPlugin):
         self['sc'].api_call("chat.delete", channel=theChannel, ts=ts) 
 
     @botcmd
+    def fw(self, mess, args):
+        yield self.forward(mess, args)
+
+    @botcmd
     def forward(self, mess, args):
         self.log.debug("Begin forward %s"%mess)
         if args.find(' ') >= 0:
@@ -202,7 +206,7 @@ class ErrForward(BotPlugin):
         else:
             cmd = args
             argsS = ""
-        self.publishSlack(mess=mess, usr=self['userName'], host= self['userHost'], typ = 'Cmd' , cmd = cmd, args = argsS)
+        yield self.publishSlack(mess=mess, usr=self['userName'], host= self['userHost'], typ = 'Cmd' , cmd = cmd, args = argsS)
         self.log.debug("End forward %s"%mess)
 
     @botcmd
