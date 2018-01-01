@@ -87,7 +87,7 @@ class ErrForward(BotPlugin):
         else:
             frm = "-"
 
-        if args:
+        if args and typ != 'Msg':
             args = urllib.parse.quote(args)
 
         msg = {'userName': usr, 'userHost': host, 
@@ -117,8 +117,6 @@ class ErrForward(BotPlugin):
                 self.log.info("Msg: %s" % msg)
                 msgJ = json.loads(msg['text'])
                 argsJ = msgJ['args']
-                if argsJ:
-                    argsJ = urllib.parse.unquote(argsJ)
                 userNameJ = msgJ['userName'] 
                 userHostJ = msgJ['userHost']
                 frmJ = msgJ['frm']
@@ -126,6 +124,8 @@ class ErrForward(BotPlugin):
                 cmdJ = msgJ['cmd']
                 argsJ = msgJ['args']
                 self.log.info("End Converting")
+                if argsJ and typ != 'Msg':
+                    argsJ = urllib.parse.unquote(argsJ)
     
                 if typJ == 'Cmd':                    
                     # It's a command
