@@ -194,20 +194,23 @@ class ErrForward(BotPlugin):
     def deleteSlack(self, theChannel, ts):
         self['sc'].api_call("chat.delete", channel=theChannel, ts=ts) 
 
-    @botcmd
-    def forward(self, mess, args):
+    def forwardCmd(self, mess, args):
         self.log.debug("Begin forward %s"%mess)
         if args.find(' ') >= 0:
             cmd, argsS = args.split()
         else:
             cmd = args
             argsS = ""
-        yield self.publishSlack(mess=mess, usr=self['userName'], host= self['userHost'], typ = 'Cmd' , cmd = cmd, args = argsS)
+        self.publishSlack(mess=mess, usr=self['userName'], host= self['userHost'], typ = 'Cmd' , cmd = cmd, args = argsS)
         self.log.debug("End forward %s"%mess)
 
     @botcmd
+    def forward(self, mess, args):
+        yield self.forwardCmd(mess, args)
+
+    @botcmd
     def fw(self, mess, args):
-        yield self.forward(mess, args)
+        yield self.forwardCmd(mess, args)
 
     @botcmd
     def myIP(self, mess, args):
