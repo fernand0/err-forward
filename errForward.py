@@ -108,7 +108,7 @@ class ErrForward(BotPlugin):
         history = self['sc'].api_call("channels.history", channel=chan)
 
         for msg in history['messages']: 
-            if True:
+            try:
                 self.log.info("Converting args")
                 self.log.info("Msg: %s" % msg)
                 msgJ = json.loads(msg['text'])
@@ -187,7 +187,7 @@ class ErrForward(BotPlugin):
                     # Hello
                     # Messages not executed
                     # ...
-            else:
+            except:
                 self.log.info("Error in msg: %s" % msg)
         self.log.info('End reading Slack')
 
