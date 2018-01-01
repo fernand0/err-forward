@@ -105,7 +105,7 @@ class ErrForward(BotPlugin):
                 return(channel['id'])
         return('')
 
-    def convertArgs(self, msg):
+    def extractArgs(self, msg):
         self.log.info("Converting args")
         self.log.info("Msg: %s" % msg)
 
@@ -139,7 +139,7 @@ class ErrForward(BotPlugin):
         history = self['sc'].api_call("channels.history", channel=chan)
 
         for msg in history['messages']: 
-            (msgJ, argsJ, userNameJ, userHostJ, frmJ, typJ, cmdJ) = self.convertArgs(msg)
+            (msgJ, argsJ, userNameJ, userHostJ, frmJ, typJ, cmdJ) = self.extractArgs(msg)
             if typJ == 'Cmd':                    
                 # It's a command
                 listCommands = self._bot.all_commands
