@@ -7,6 +7,7 @@ import datetime
 import inspect
 import re
 import json
+from urllib import urllib.parse
 
 def end(msg=""):
     return("END"+msg)
@@ -86,6 +87,9 @@ class ErrForward(BotPlugin):
         else:
             frm = "-"
 
+        if args:
+            args = urllib.parse.quote(args)
+
         msg = {'userName': usr, 'userHost': host, 
                 'frm': str(frm), 'typ': typ, 'cmd': cmd, 'args': args }
         msgJ = json.dumps(msg)
@@ -113,6 +117,8 @@ class ErrForward(BotPlugin):
                 self.log.info("Msg: %s" % msg)
                 msgJ = json.loads(msg['text'])
                 argsJ = msgJ['args']
+                if argsJ:
+                    argsJ = urllib.parse.unquote(argsJ)
                 userNameJ = msgJ['userName'] 
                 userHostJ = msgJ['userHost']
                 frmJ = msgJ['frm']
