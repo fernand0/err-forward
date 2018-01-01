@@ -7,7 +7,7 @@ import datetime
 import inspect
 import re
 import json
-from urllib import urllib.parse
+import urllib.parse
 
 def end(msg=""):
     return("END"+msg)
