@@ -82,10 +82,11 @@ class ErrForward(BotPlugin):
 
     def publishSlack(self, usr="", host="", frm="", mess = "", typ ="", cmd = "", args =""):
 
-        if mess:
-            frm = mess.frm
-        else:
-            frm = "-"
+        if not frm: 
+            if mess: 
+                frm = mess.frm 
+            elif frm: 
+                frm = "-"
 
         if args and typ != 'Msg':
             args = urllib.parse.quote(args)
@@ -128,8 +129,8 @@ class ErrForward(BotPlugin):
                     self.log.debug("Reply args before: %s " % argsJ)
                     argsJ = urllib.parse.unquote(argsJ)
                     self.log.debug("Reply args after: %s " % argsJ)
-                    self.log.debug("Msg args after: %s " % msgJ)
-    
+                    self.log.debug("Reply args after: %s " % frmJ)
+
                 if typJ == 'Cmd':                    
                     # It's a command
                     listCommands = self._bot.all_commands
@@ -138,7 +139,7 @@ class ErrForward(BotPlugin):
                         # Maybe we could also have separated the command from
                         # args
                         cmdJ = cmdJ[1:]
-    
+
                         self.log.debug("Cmd: %s"% cmdJ)
                         #self.log.debug("Cmd: %s"% listCommands)
                         if cmdJ in listCommands:
