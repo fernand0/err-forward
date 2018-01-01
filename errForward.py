@@ -124,8 +124,10 @@ class ErrForward(BotPlugin):
                 cmdJ = msgJ['cmd']
                 argsJ = msgJ['args']
                 self.log.info("End Converting")
-                if argsJ and typ != 'Msg':
+                if argsJ and (typJ != 'Msg'):
+                    self.log.debug("Reply args before: %s " % argsJ)
                     argsJ = urllib.parse.unquote(argsJ)
+                    self.log.debug("Reply args after: %s " % argsJ)
     
                 if typJ == 'Cmd':                    
                     # It's a command
