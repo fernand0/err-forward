@@ -193,16 +193,8 @@ class ErrForward(BotPlugin):
                         msgTo = self._bot.build_identifier(frmJ)
                     else:
                         msgTo = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
-                    #for reply in replies.split('\n'):
-                    #    self.log.debug("FRm",frmJ)
-                    #    self.log.debug("Reply: %s " % reply)
-                    #    if not (frmJ == '-'):
-                    #        msgTo = self._bot.build_identifier(frmJ)
-                    #    else:
-                    #        msgTo = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
-                    #    reply = reply.replace('_','\_')
-
-                    #    self.send(msgTo, reply)
+                    # Escaping some markdown. Maybe we will need more
+                    reply = reply.replace('_','\_')
                     
                     self.send(msgTo, replies)
                     self.deleteSlack(chan, msg['ts'])
