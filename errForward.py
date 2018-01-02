@@ -189,19 +189,22 @@ class ErrForward(BotPlugin):
                     # It's for me
                     self.log.info("It's for me")
                     replies = argsJ 
-                    for reply in replies.split('\n'):
-                        self.log.debug("FRm",frmJ)
-                        self.log.debug("Reply: %s " % reply)
-                        if not (frmJ == '-'):
-                            msgTo = self._bot.build_identifier(frmJ)
-                        else:
-                            msgTo = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
-                        if reply.startswith('{'):
-                            # Is it a dictionary?
-                            reply = reply.replace('_','\_')
+                    if not (frmJ == '-'):
+                        msgTo = self._bot.build_identifier(frmJ)
+                    else:
+                        msgTo = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
+                    #for reply in replies.split('\n'):
+                    #    self.log.debug("FRm",frmJ)
+                    #    self.log.debug("Reply: %s " % reply)
+                    #    if not (frmJ == '-'):
+                    #        msgTo = self._bot.build_identifier(frmJ)
+                    #    else:
+                    #        msgTo = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
+                    #    reply = reply.replace('_','\_')
 
-                        self.send(msgTo, '{0}'.format(reply))
-
+                    #    self.send(msgTo, reply)
+                    
+                    self.send(msgTo, replies)
                     self.deleteSlack(chan, msg['ts'])
                 #else
                 # Maybe we could clean old messages here?
