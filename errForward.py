@@ -194,7 +194,7 @@ class ErrForward(BotPlugin):
                     else:
                         msgTo = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
                     # Escaping some markdown. Maybe we will need more
-                    reply = reply.replace('_','\_')
+                    replies = replies.replace('_','\_')
                     
                     self.send(msgTo, replies)
                     self.deleteSlack(chan, msg['ts'])
