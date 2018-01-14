@@ -131,6 +131,7 @@ class ErrForward(BotPlugin):
             return(msgJ, argsJ, userNameJ, userHostJ, frmJ, typJ, cmdJ)
 
     def manageCommand(self, chan, cmdJ, userNameJ, userHostJ, argsJ, frmJ, msg):
+        self.log.info("Starting manage command")
         listCommands = self._bot.all_commands
         if cmdJ.startswith(self._bot.bot_config.BOT_PREFIX): 
             # Consider avoiding it (?)
@@ -167,6 +168,7 @@ class ErrForward(BotPlugin):
                         host=userHostJ, frm = frmJ, args = txtR)
         
                 self.deleteSlack(chan, msg['ts'])
+                self.log.info("End manage command")
 
     def manageReply(self, chan, userNameJ, userHostJ, argsJ, frmJ, msg):
         self.log.info("Is it for me?")
@@ -199,7 +201,7 @@ class ErrForward(BotPlugin):
             (msgJ, argsJ, userNameJ, userHostJ, frmJ, typJ, cmdJ) = self.extractArgs(msg)
             if typJ == 'Cmd':                    
                 # It's a command 
-                self.manageCommand(cmdJ, chan, userNameJ, userHostJ, argsJ, frmJ, msg)
+                self.manageCommand(chan, cmdJ, userNameJ, userHostJ, argsJ, frmJ, msg)
             elif typJ == 'Rep':                    
                 # It's a reply
                 self.manageReply(chan, userNameJ, userHostJ, argsJ, frmJ, msg)
