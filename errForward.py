@@ -130,7 +130,7 @@ class ErrForward(BotPlugin):
             self.log.info("Error Converting: %s" % msg)
             return(msgJ, argsJ, userNameJ, userHostJ, frmJ, typJ, cmdJ)
 
-    def manageCommand(self, cmdJ, userNameJ, userHostJ, argsJ, frmJ, msg):
+    def manageCommand(self, chan, cmdJ, userNameJ, userHostJ, argsJ, frmJ, msg):
         listCommands = self._bot.all_commands
         if cmdJ.startswith(self._bot.bot_config.BOT_PREFIX): 
             # Consider avoiding it (?)
@@ -168,7 +168,7 @@ class ErrForward(BotPlugin):
         
                 self.deleteSlack(chan, msg['ts'])
 
-    def manageReply(self, userNameJ, userHostJ, argsJ, frmJ, msg):
+    def manageReply(self, chan, userNameJ, userHostJ, argsJ, frmJ, msg):
         self.log.info("Is it for me?")
         self.log.debug("User: %s - %s | %s - %s" %
                 (userNameJ, self['userName'], 
@@ -199,46 +199,10 @@ class ErrForward(BotPlugin):
             (msgJ, argsJ, userNameJ, userHostJ, frmJ, typJ, cmdJ) = self.extractArgs(msg)
             if typJ == 'Cmd':                    
                 # It's a command 
-                self.manageCommand(cmdJ, userNameJ, userHostJ, argsJ, frmJ, msg)
-                #listCommands = self._bot.all_commands
-                #if cmdJ.startswith(self._bot.bot_config.BOT_PREFIX): 
-                #    # Consider avoiding it (?)
-                #    # Maybe we could also have separated the command from
-                #    # args
-                #    cmdJ = cmdJ[len(self._bot.bot_config.BOT_PREFIX):]
-
-                #    self.log.debug("Cmd: %s"% cmdJ)
-                #    if cmdJ in listCommands:
-                #        self.log.debug("I'd execute -%s- args -%s-" 
-                #                % (cmdJ, argsJ))
-                #        method = listCommands[cmdJ]                   
-                #        self.log.debug("template -%s-" 
-                #                % method._err_command_template)
-                #        txtR = ''
-                #        if inspect.isgeneratorfunction(method): 
-                #            replies = method("", argsJ) 
-                #            for reply in replies: 
-                #                if isinstance(reply, str):
-                #                    txtR = txtR + '\n' + reply 
-                #        else: 
-                #            reply = method("", argsJ) 
-                #            if isinstance(reply,str):
-                #                txtR = txtR + reply
-                #            else:
-                #                # What happens if ther is no template?
-                #                # https://github.com/errbotio/errbot/blob/master/errbot/core.py
-                #                self.log.debug("tenv -> %s%s" 
-                #                        % (method._err_command_template,
-                #                            '.md'))
-                #                txtR = txtR + tenv().get_template(method._err_command_template+'.md').render(reply)
-
-                #        self.publishSlack(typ = 'Rep', usr= userNameJ,
-                #                host=userHostJ, frm = frmJ, args = txtR)
-    
-                #        self.deleteSlack(chan, msg['ts'])
+                self.manageCommand(cmdJ, chan, userNameJ, userHostJ, argsJ, frmJ, msg)
             elif typJ == 'Rep':                    
                 # It's a reply
-                self.manageReply(userNameJ, userHostJ, argsJ, frmJ, msg)
+                self.manageReply(chan, userNameJ, userHostJ, argsJ, frmJ, msg)
             #else
                 # Maybe we could clean old messages here?
                 # Hello
