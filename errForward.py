@@ -32,7 +32,7 @@ class ErrForward(BotPlugin):
         #super(Skeleton, self).activate()
         
         super().activate()
-        self.log.info('Vamos allá')
+        self.log.info("Let's go")
 
         config = configparser.ConfigParser()
         config.read([os.path.expanduser('~/'+'.rssSlack')])
@@ -46,7 +46,7 @@ class ErrForward(BotPlugin):
 
         self.publishSlack(typ = 'Msg', args = 'Hello! from %s' % self.getMyIP())
         self.start_poller(60, self.readSlack)
-        self.log.info('Debería estar activo')
+        self.log.info('ErrForward has been activated')
 
     #def deactivate(self):
     #    """
@@ -168,9 +168,10 @@ class ErrForward(BotPlugin):
                         host=userHostJ, frm = frmJ, args = txtR)
         
                 self.deleteSlack(chan, msg['ts'])
-                self.log.info("End manage command")
+        self.log.info("End manage command")
 
     def manageReply(self, chan, userNameJ, userHostJ, argsJ, frmJ, msg):
+        self.log.info("Starting manage command")
         self.log.info("Is it for me?")
         self.log.debug("User: %s - %s | %s - %s" %
                 (userNameJ, self['userName'], 
@@ -189,6 +190,7 @@ class ErrForward(BotPlugin):
             
             self.send(msgTo, replies)
             self.deleteSlack(chan, msg['ts'])
+        self.log.info("End manage reply")
 
     def readSlack(self):
         # Don't put yield in this function!
