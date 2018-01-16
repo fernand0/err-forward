@@ -179,7 +179,7 @@ class ErrForward(BotPlugin):
         if ((userNameJ == self['userName']) 
                 and (userHostJ == self['userHost'])):
             # It's for me
-            self.log.info("It's for me")
+            self.log.info("Yes. It's for me")
             replies = argsJ 
             if not (frmJ == '-'):
                 msgTo = self._bot.build_identifier(frmJ)
