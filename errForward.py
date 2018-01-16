@@ -122,7 +122,7 @@ class ErrForward(BotPlugin):
             return(msgJ)
         except:
             self.log.info("Error Converting: %s" % msg)
-            return(msgJ, argsJ, userNameJ, userHostJ, frmJ, typJ, cmdJ)
+            return(msgJ)
 
     def manageCommand(self, chan, msgJ, msg):
         self.log.info("Starting manage command")
