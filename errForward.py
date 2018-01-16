@@ -109,25 +109,17 @@ class ErrForward(BotPlugin):
         self.log.info("Converting args")
         self.log.info("Msg: %s" % msg)
 
-        (msgJ, argsJ, userNameJ, userHostJ, frmJ, typJ, cmdJ) = ("", "", "", "", "", "", "")
         try:
             msgJ = json.loads(msg['text'])
-            argsJ = msgJ['args']
-            userNameJ = msgJ['userName'] 
-            userHostJ = msgJ['userHost']
-            frmJ = msgJ['frm']
-            typJ = msgJ['typ']
-            cmdJ = msgJ['cmd']
             
-            if argsJ and (typJ != 'Msg'):
+            if msgJ['args'] and (msgJ['typ'] != 'Msg'):
                 # Unquoting the args
                 self.log.debug("Reply args before: %s " % argsJ)
-                argsJ = urllib.parse.unquote(argsJ)
                 msgJ['args'] = urllib.parse.unquote(msgJ['args'])
-                self.log.debug("Reply args after: %s " % argsJ)
-                self.log.debug("Reply args after: %s " % frmJ)
+                self.log.debug("Reply args after: %s " % msg['args'])
+                self.log.debug("Reply args after: %s " % msg['frm'])
                 self.log.info("End Converting")
-            return(msgJ, argsJ, userNameJ, userHostJ, frmJ, typJ, cmdJ)
+            return(msgJ)
         except:
             self.log.info("Error Converting: %s" % msg)
             return(msgJ, argsJ, userNameJ, userHostJ, frmJ, typJ, cmdJ)
@@ -202,7 +194,7 @@ class ErrForward(BotPlugin):
         history = self['sc'].api_call("channels.history", channel=chan)
 
         for msg in history['messages']: 
-            (msgJ, argsJ, userNameJ, userHostJ, frmJ, typJ, cmdJ) = self.extractArgs(msg)
+            msgJ = self.extractArgs(msg)
             if msgJ['typ'] == 'Cmd':                    
                 # It's a command 
                 self.manageCommand(chan, msgJ, msg)
