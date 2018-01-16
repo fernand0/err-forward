@@ -120,8 +120,10 @@ class ErrForward(BotPlugin):
             cmdJ = msgJ['cmd']
             
             if argsJ and (typJ != 'Msg'):
+                # Unquoting the args
                 self.log.debug("Reply args before: %s " % argsJ)
                 argsJ = urllib.parse.unquote(argsJ)
+                msgJ['args'] = urllib.parse.unquote(msgJ['args'])
                 self.log.debug("Reply args after: %s " % argsJ)
                 self.log.debug("Reply args after: %s " % frmJ)
                 self.log.info("End Converting")
@@ -130,30 +132,30 @@ class ErrForward(BotPlugin):
             self.log.info("Error Converting: %s" % msg)
             return(msgJ, argsJ, userNameJ, userHostJ, frmJ, typJ, cmdJ)
 
-    def manageCommand(self, chan, cmdJ, userNameJ, userHostJ, argsJ, frmJ, msg):
+    def manageCommand(self, chan, msgJ, msg):
         self.log.info("Starting manage command")
         listCommands = self._bot.all_commands
-        if cmdJ.startswith(self._bot.bot_config.BOT_PREFIX): 
+        if msgJ['cmd'].startswith(self._bot.bot_config.BOT_PREFIX): 
             # Consider avoiding it (?)
             # Maybe we could also have separated the command from
             # args
-            cmdJ = cmdJ[len(self._bot.bot_config.BOT_PREFIX):]
+            cmd = msgJ['cmd'][len(self._bot.bot_config.BOT_PREFIX):]
 
-            self.log.debug("Cmd: %s"% cmdJ)
-            if cmdJ in listCommands:
+            self.log.debug("Cmd: %s"% cmd)
+            if cmd in listCommands:
                 self.log.debug("I'd execute -%s- args -%s-" 
-                        % (cmdJ, argsJ))
-                method = listCommands[cmdJ]                   
+                        % (cmd, msgJ['args']))
+                method = listCommands[cmd]                   
                 self.log.debug("template -%s-" 
                         % method._err_command_template)
                 txtR = ''
                 if inspect.isgeneratorfunction(method): 
-                    replies = method("", argsJ) 
+                    replies = method("", msgJ['args']) 
                     for reply in replies: 
                         if isinstance(reply, str):
                             txtR = txtR + '\n' + reply 
                 else: 
-                    reply = method("", argsJ) 
+                    reply = method("", msgJ['args']) 
                     if isinstance(reply,str):
                         txtR = txtR + reply
                     else:
@@ -164,25 +166,25 @@ class ErrForward(BotPlugin):
                                     '.md'))
                         txtR = txtR + tenv().get_template(method._err_command_template+'.md').render(reply)
 
-                self.publishSlack(typ = 'Rep', usr= userNameJ,
-                        host=userHostJ, frm = frmJ, args = txtR)
+                self.publishSlack(typ = 'Rep', usr= msgJ['userName'],
+                        host=msgJ['userHost'], frm = msgJ['frm'], args = txtR)
         
                 self.deleteSlack(chan, msg['ts'])
         self.log.info("End manage command")
 
-    def manageReply(self, chan, userNameJ, userHostJ, argsJ, frmJ, msg):
+    def manageReply(self, chan, msgJ, msg):
         self.log.info("Starting manage command")
         self.log.info("Is it for me?")
         self.log.debug("User: %s - %s | %s - %s" %
-                (userNameJ, self['userName'], 
-                    userHostJ, self['userHost']))
-        if ((userNameJ == self['userName']) 
-                and (userHostJ == self['userHost'])):
+                (msgJ['userName'], self['userName'], 
+                    msgJ['userHost'], self['userHost']))
+        if ((msgJ['userName'] == self['userName']) 
+                and (msgJ['userHost'] == self['userHost'])):
             # It's for me
             self.log.info("Yes. It's for me")
-            replies = argsJ 
-            if not (frmJ == '-'):
-                msgTo = self._bot.build_identifier(frmJ)
+            replies = msgJ['args'] 
+            if not (msgJ['frm'] == '-'):
+                msgTo = self._bot.build_identifier(msgJ['frm'])
             else:
                 msgTo = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
             # Escaping some markdown. Maybe we will need more
@@ -201,12 +203,12 @@ class ErrForward(BotPlugin):
 
         for msg in history['messages']: 
             (msgJ, argsJ, userNameJ, userHostJ, frmJ, typJ, cmdJ) = self.extractArgs(msg)
-            if typJ == 'Cmd':                    
+            if msgJ['typ'] == 'Cmd':                    
                 # It's a command 
-                self.manageCommand(chan, cmdJ, userNameJ, userHostJ, argsJ, frmJ, msg)
-            elif typJ == 'Rep':                    
+                self.manageCommand(chan, msgJ, msg)
+            elif msgJ['typ'] == 'Rep':                    
                 # It's a reply
-                self.manageReply(chan, userNameJ, userHostJ, argsJ, frmJ, msg)
+                self.manageReply(chan, msgJ, msg)
             #else
                 # Maybe we could clean old messages here?
                 # Hello
