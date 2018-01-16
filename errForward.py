@@ -114,7 +114,7 @@ class ErrForward(BotPlugin):
             
             if msgJ['args'] and (msgJ['typ'] != 'Msg'):
                 # Unquoting the args
-                self.log.debug("Reply args before: %s " % argsJ)
+                self.log.debug("Reply args before: %s " % msgJ['args'])
                 msgJ['args'] = urllib.parse.unquote(msgJ['args'])
                 self.log.debug("Reply args after: %s " % msg['args'])
                 self.log.debug("Reply args after: %s " % msg['frm'])
