@@ -194,6 +194,7 @@ class ErrForward(BotPlugin):
         chan = self.normalizedChan(self._check_config('channel'))
         history = self['sc'].api_call("channels.history", channel=chan)
 
+        self.log.debug("history %s history"%history)
         for msg in history['messages']: 
             msgJ = self.extractArgs(msg) 
             if ('typ' in msgJ):
