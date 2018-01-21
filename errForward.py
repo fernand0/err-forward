@@ -119,10 +119,10 @@ class ErrForward(BotPlugin):
                 self.log.debug("Reply args after: %s " % msg['args'])
                 self.log.debug("Reply args after: %s " % msg['frm'])
                 self.log.info("End Converting")
-            return(msgJ)
         except:
             self.log.info("Error Converting: %s" % msg)
-            return(msgJ)
+            msgJ = ""
+        return(msgJ)
 
     def manageCommand(self, chan, msgJ, msg):
         self.log.info("Starting manage command")
