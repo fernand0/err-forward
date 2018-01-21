@@ -109,7 +109,7 @@ class ErrForward(BotPlugin):
         self.log.info("Converting args")
         self.log.info("Msg: %s" % msg)
 
-        if True:
+        try:
             msgJ = json.loads(msg['text'])
             
             if msgJ['args'] and (msgJ['typ'] != 'Msg'):
@@ -120,7 +120,7 @@ class ErrForward(BotPlugin):
                 self.log.debug("Reply args after: %s " % msgJ['args'])
                 self.log.debug("Reply args after: %s " % msgJ['frm'])
                 self.log.info("End Converting")
-        else:
+        except:
             self.log.info("Error Converting: %s" % msg)
             msgJ = ""
         return(msgJ)
