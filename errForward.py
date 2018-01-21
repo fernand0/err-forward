@@ -117,8 +117,8 @@ class ErrForward(BotPlugin):
                 self.log.debug("Reply args before: %s " % msgJ['args'])
                 tmpJ = urllib.parse.unquote(msgJ['args'])
                 msgJ['args'] = tmpJ
-                self.log.debug("Reply args after: %s " % msg['args'])
-                self.log.debug("Reply args after: %s " % msg['frm'])
+                self.log.debug("Reply args after: %s " % msgJ['args'])
+                self.log.debug("Reply args after: %s " % msgJ['frm'])
                 self.log.info("End Converting")
         else:
             self.log.info("Error Converting: %s" % msg)
