@@ -194,13 +194,14 @@ class ErrForward(BotPlugin):
         history = self['sc'].api_call("channels.history", channel=chan)
 
         for msg in history['messages']: 
-            msgJ = self.extractArgs(msg)
-            if msgJ['typ'] == 'Cmd':                    
-                # It's a command 
-                self.manageCommand(chan, msgJ, msg)
-            elif msgJ['typ'] == 'Rep':                    
-                # It's a reply
-                self.manageReply(chan, msgJ, msg)
+            msgJ = self.extractArgs(msg) 
+            if ('typ' in msgJ):
+                if msgJ['typ'] == 'Cmd':                    
+                    # It's a command 
+                    self.manageCommand(chan, msgJ, msg) 
+                elif msgJ['typ'] == 'Rep':                    
+                    # It's a reply 
+                    self.manageReply(chan, msgJ, msg)
             #else
                 # Maybe we could clean old messages here?
                 # Hello
