@@ -161,6 +161,8 @@ class ErrForward(BotPlugin):
 
                 self.publishSlack(typ = 'Rep', usr= msgJ['userName'],
                         host=msgJ['userHost'], frm = msgJ['frm'], args = txtR)
+                # Split long Rep.
+                # Adding a new type of Rep?
         
                 self.deleteSlack(chan, msg['ts'])
         self.log.info("End manage command")
