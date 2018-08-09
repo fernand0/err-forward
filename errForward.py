@@ -99,6 +99,7 @@ class ErrForward(BotPlugin):
         self['sc'].api_call( "chat.postMessage", channel = chan, text = msgJ)
 
     def normalizedChan(self, chan): 
+        self.log.info('Searching for channel %s' % chan)
         chanList = self['sc'].api_call("channels.list")['channels'] 
         for channel in chanList: 
             if channel['name_normalized'] == chan:
@@ -192,8 +193,9 @@ class ErrForward(BotPlugin):
     def readSlack(self):
         # Don't put yield in this function!
         self.log.info('Start reading Slack')
+        self.log.info('Slack channel %s' % self['chan'])
 
-        chan = self.normalizedChan(self._check_config('channel'))
+        chan = self.normalizedChan(self['chan'])
         history = self['sc'].api_call("channels.history", channel=chan)
 
         self.log.debug("history %s history"%history)
