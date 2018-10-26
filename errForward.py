@@ -35,7 +35,7 @@ class ErrForward(BotPlugin):
         self.log.info("Let's go")
 
         config = configparser.ConfigParser()
-        config.read([os.path.expanduser('~/.mySocial/config'+'/.rssSlack')])
+        config.read([os.path.expanduser('~/.mySocial/config/'+'.rssSlack')])
     
         slack_token = config["Slack"].get('api-key')
         
