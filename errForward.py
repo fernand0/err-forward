@@ -35,7 +35,7 @@ class ErrForward(BotPlugin):
         self.log.info("Let's go")
 
         config = configparser.ConfigParser()
-        config.read([os.path.expanduser('~/'+'.rssSlack')])
+        config.read([os.path.expanduser('~/.mySocial/config'+'/.rssSlack')])
     
         slack_token = config["Slack"].get('api-key')
         
@@ -45,6 +45,7 @@ class ErrForward(BotPlugin):
         self['userHost'] = os.uname()[1]
 
         self.publishSlack(typ = 'Msg', args = 'Hello! from %s' % self.getMyIP())
+        
         self.start_poller(60, self.readSlack)
         self.log.info('ErrForward has been activated')
 
