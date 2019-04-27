@@ -1,4 +1,5 @@
 from errbot import BotPlugin, botcmd, webhook
+from errbot.backends.base import Message, Identifier
 from errbot.templating import tenv
 from slackclient import SlackClient
 import configparser
@@ -11,6 +12,10 @@ import urllib.parse
 
 def end(msg=""):
     return("END"+msg)
+
+class MyMessage():
+    def __init__(self):
+        self.frm =''
 
 class ErrForward(BotPlugin):
     """
@@ -150,7 +155,22 @@ class ErrForward(BotPlugin):
                         if isinstance(reply, str):
                             txtR = txtR + '\n' + reply 
                 else: 
-                    reply = method("", msgJ['args']) 
+                    self.log.info("mmsg %s" %msgJ['args'])
+                    if msgJ['args']:
+                        reply = method("", msgJ['args']) 
+                    else:
+                        # There is no from, we need to set some. We will use
+                        # one of the bot admins
+                        newMsg = MyMessage()
+                        self.log.info("newMsg %s" % type(newMsg))
+                        newMsg.frm = self._bot.build_identifier(self.bot_config.BOT_ADMINS[0])
+                        self.log.info("newFrm %s" % newMsg.frm)
+                        # Do we need to delete the message before executing the
+                        # command?
+                        # At leas it can be true when restarting the bot
+                        self.deleteSlack(chan, msg['ts'])
+                        reply = method(newMsg, "") 
+
                     if isinstance(reply,str):
                         txtR = txtR + reply
                     else:
