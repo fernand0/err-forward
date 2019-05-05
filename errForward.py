@@ -13,9 +13,9 @@ import urllib.parse
 def end(msg=""):
     return("END"+msg)
 
-class MyMessage():
-    def __init__(self):
-        self.frm =''
+#class MyMessage():
+#    def __init__(self):
+#        self.frm =''
 
 class ErrForward(BotPlugin):
     """
@@ -162,9 +162,7 @@ class ErrForward(BotPlugin):
                     else:
                         # There is no from, we need to set some. We will use
                         # one of the bot admins
-                        newMsg = MyMessage()
-                        self.log.info("newMsg %s" % type(newMsg))
-                        newMsg.frm = self._bot.build_identifier(self.bot_config.BOT_ADMINS[0])
+                        newMsg = Message(frm= self._bot.build_identifier(self.bot_config.BOT_ADMINS[0]))
                         self.log.info("newFrm %s" % newMsg.frm)
                         # Do we need to delete the message before executing the
                         # command?
