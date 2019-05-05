@@ -50,7 +50,7 @@ class ErrForward(BotPlugin):
         self['userHost'] = os.uname()[1]
 
         self.publishSlack(typ = 'Msg', 
-                args = 'Hello! from %s IP: %s. Commands with [%s].' % 
+                args = 'Hello! from %20s IP: %s. Commands with [%s].' % 
                 (self['userHost'], self.getMyIP(), 
                     self._bot.bot_config.BOT_PREFIX))
         
