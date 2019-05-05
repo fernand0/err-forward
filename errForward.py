@@ -49,7 +49,8 @@ class ErrForward(BotPlugin):
         self['userName'] = pwd.getpwuid(os.getuid())[0]
         self['userHost'] = os.uname()[1]
 
-        self.publishSlack(typ = 'Msg', args = 'Hello! from %s' % self.getMyIP())
+        self.publishSlack(typ = 'Msg', args = 'Hello! from %s IP: %s' % 
+                (self['userHost'], self.getMyIP()))
         
         self.start_poller(60, self.readSlack)
         self.log.info('ErrForward has been activated')
