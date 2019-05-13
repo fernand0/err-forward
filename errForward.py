@@ -1,7 +1,7 @@
 from errbot import BotPlugin, botcmd, webhook
 from errbot.backends.base import Message, Identifier
 from errbot.templating import tenv
-from slackclient import SlackClient
+import moduleSlack
 import configparser
 import os, pwd
 import datetime
@@ -9,6 +9,8 @@ import inspect
 import re
 import json
 import urllib.parse
+
+from configMod import *
 
 def end(msg=""):
     return("END"+msg)
@@ -40,11 +42,17 @@ class ErrForward(BotPlugin):
         self.log.info("Let's go")
 
         config = configparser.ConfigParser()
-        config.read([os.path.expanduser('~/.mySocial/config/'+'.rssSlack')])
-    
-        slack_token = config["Slack"].get('api-key')
-        
-        self['sc'] = SlackClient(slack_token)
+        config.read(CONFIGDIR + '/.rssBlogs')
+
+        site = moduleSlack.moduleSlack()
+        section = "Blog7"
+        url = config.get(section, "url")
+        site.setUrl(url)
+
+        SLACKCREDENTIALS = os.path.expanduser(CONFIGDIR + '/.rssSlack')
+        site.setSlackClient(SLACKCREDENTIALS)
+
+        self['sc'] = site
         self['chan'] = str(self._check_config('channel'))
         self['userName'] = pwd.getpwuid(os.getuid())[0]
         self['userHost'] = os.uname()[1]
@@ -105,7 +113,7 @@ class ErrForward(BotPlugin):
         msgJ = json.dumps(msg)
 
         chan = self['chan']
-        self['sc'].api_call( "chat.postMessage", channel = chan, text = msgJ)
+        self['sc'].publishPost(chan, msgJ)
 
     def normalizedChan(self, chan): 
         self.log.info('Searching for channel %s' % chan)
@@ -169,7 +177,7 @@ class ErrForward(BotPlugin):
                         # Do we need to delete the message before executing the
                         # command?
                         # At leas it can be true when restarting the bot
-                        self.deleteSlack(chan, msg['ts'])
+                        self['sc'].deletePost(msg['ts'], chan)
                         reply = method(newMsg, "") 
 
                     if isinstance(reply,str):
@@ -187,7 +195,7 @@ class ErrForward(BotPlugin):
                 # Split long Rep.
                 # Adding a new type of Rep?
         
-                self.deleteSlack(chan, msg['ts'])
+                self['sc'].deletePost(msg['ts'], chan)
         self.log.info("End manage command")
 
     def manageReply(self, chan, msgJ, msg):
@@ -209,7 +217,7 @@ class ErrForward(BotPlugin):
             replies = replies.replace('_','\_')
             
             self.send(msgTo, replies)
-            self.deleteSlack(chan, msg['ts'])
+            self['sc'].deletePost(msg['ts'], chan)
         self.log.info("End manage reply")
 
     def readSlack(self):
@@ -217,11 +225,14 @@ class ErrForward(BotPlugin):
         self.log.info('Start reading Slack')
         self.log.info('Slack channel %s' % self['chan'])
 
-        chan = self.normalizedChan(self['chan'])
-        history = self['sc'].api_call("channels.history", channel=chan)
+        chan = self['sc'].getChanId(self['chan'])
+        site = self['sc']
+        site.setPosts(self['chan'])
+        self.log.info('Haaaare')
+                        
+        self.log.info('Slack channel posts %s' % self['sc'].getPosts())
 
-        self.log.debug("history %s history"%history)
-        for msg in history['messages']: 
+        for msg in site.getPosts(): 
             msgJ = self.extractArgs(msg) 
             if ('typ' in msgJ):
                 if msgJ['typ'] == 'Cmd':                    
@@ -239,8 +250,8 @@ class ErrForward(BotPlugin):
             #    self.log.info("Error in msg: %s" % msg)
         self.log.info('End reading Slack')
 
-    def deleteSlack(self, theChannel, ts):
-        self['sc'].api_call("chat.delete", channel=theChannel, ts=ts) 
+    #def deleteSlack(self, theChannel, ts):
+    #    self['sc'].api_call("chat.delete", channel=theChannel, ts=ts) 
 
     def forwardCmd(self, mess, args):
         self.log.info("Begin forward %s"%mess)
