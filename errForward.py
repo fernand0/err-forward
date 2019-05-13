@@ -23,13 +23,7 @@ class ErrForward(BotPlugin):
     """
     An Err plugin for forwarding instructions
     """
-
-    def getMyIP(self):
-        import socket
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(('google.com', 0))
-        return(s.getsockname()[0])
-         
+        
     def activate(self):
         """
         Triggers on plugin activation
@@ -57,27 +51,21 @@ class ErrForward(BotPlugin):
         self['userName'] = pwd.getpwuid(os.getuid())[0]
         self['userHost'] = os.uname()[1]
 
-        self.publishSlack(typ = 'Msg', 
+        msgJ = self.prepareMessage(typ = 'Msg', 
                 args = 'Hello! IP: %s. Commands with [%s]. Name: %s' % 
                 (self.getMyIP(), 
                     self._bot.bot_config.BOT_PREFIX, self['userHost']))
+
+        chan = self['chan']
+        self['sc'].publishPost(chan, msgJ)
         
         self.start_poller(60, self.readSlack)
         self.log.info('ErrForward has been activated')
 
-    #def deactivate(self):
-    #    """
-    #    Triggers on plugin deactivation
-
-    #    You should delete it if you're not using it to override any default behaviour
-    #    """
-    #    super(Skeleton, self).deactivate()
-
     def get_configuration_template(self):
         """
         """
-        return {'channel': "general"
-               }
+        return {'channel': "general"}
 
     def _check_config(self, option):
 
@@ -97,13 +85,20 @@ class ErrForward(BotPlugin):
         if (mess.body.find(userName) == -1) or (mess.body.find(hostName) == -1):
             yield("Trying!")
 
-    def publishSlack(self, usr="", host="", frm="", mess = "", typ ="", cmd = "", args =""):
+    def getMyIP(self):
+        import socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('google.com', 0))
+        return(s.getsockname()[0])
+ 
+    def prepareMessage(self, usr="", host="", frm="", mess = "", 
+            typ ="", cmd = "", args =""):
 
         if not frm: 
             if mess: 
                 frm = mess.frm 
-            elif frm: 
-                frm = "-"
+            #elif frm: 
+            #    frm = "-"
 
         if args and typ != 'Msg':
             args = urllib.parse.quote(args)
@@ -112,16 +107,35 @@ class ErrForward(BotPlugin):
                 'frm': str(frm), 'typ': typ, 'cmd': cmd, 'args': args }
         msgJ = json.dumps(msg)
 
-        chan = self['chan']
-        self['sc'].publishPost(chan, msgJ)
+        return(msgJ)
 
-    def normalizedChan(self, chan): 
-        self.log.info('Searching for channel %s' % chan)
-        chanList = self['sc'].api_call("channels.list")['channels'] 
-        for channel in chanList: 
-            if channel['name_normalized'] == chan:
-                return(channel['id'])
-        return('')
+
+    #def publish(self, usr="", host="", frm="", mess = "", 
+    #        typ ="", cmd = "", args =""):
+
+    #    if not frm: 
+    #        if mess: 
+    #            frm = mess.frm 
+    #        #elif frm: 
+    #        #    frm = "-"
+
+    #    if args and typ != 'Msg':
+    #        args = urllib.parse.quote(args)
+
+    #    msg = {'userName': usr, 'userHost': host, 
+    #            'frm': str(frm), 'typ': typ, 'cmd': cmd, 'args': args }
+    #    msgJ = json.dumps(msg)
+
+    #    chan = self['chan']
+    #    self['sc'].publishPost(chan, msgJ)
+
+    #def normalizedChan(self, chan): 
+    #    self.log.info('Searching for channel %s' % chan)
+    #    chanList = self['sc'].api_call("channels.list")['channels'] 
+    #    for channel in chanList: 
+    #        if channel['name_normalized'] == chan:
+    #            return(channel['id'])
+    #    return('')
 
     def extractArgs(self, msg):
         self.log.info("Converting args")
@@ -190,11 +204,15 @@ class ErrForward(BotPlugin):
                                     '.md'))
                         txtR = txtR + tenv().get_template(method._err_command_template+'.md').render(reply)
 
-                self.publishSlack(typ = 'Rep', usr= msgJ['userName'],
+                msgJ = self.prepareMessage(typ = 'Rep', usr= msgJ['userName'],
                         host=msgJ['userHost'], frm = msgJ['frm'], args = txtR)
                 # Split long Rep.
                 # Adding a new type of Rep?
         
+                chanP = self['chan']
+                self['sc'].publishPost(chanP, msgJ)
+                self.log.info("End forward %s"%mess)
+
                 self['sc'].deletePost(msg['ts'], chan)
         self.log.info("End manage command")
 
@@ -228,7 +246,6 @@ class ErrForward(BotPlugin):
         chan = self['sc'].getChanId(self['chan'])
         site = self['sc']
         site.setPosts(self['chan'])
-        self.log.info('Haaaare')
                         
         self.log.info('Slack channel posts %s' % self['sc'].getPosts())
 
@@ -241,28 +258,22 @@ class ErrForward(BotPlugin):
                 elif msgJ['typ'] == 'Rep':                    
                     # It's a reply 
                     self.manageReply(chan, msgJ, msg)
-            #else
-                # Maybe we could clean old messages here?
-                # Hello
-                # Messages not executed
-                # ...
-            #except:
-            #    self.log.info("Error in msg: %s" % msg)
         self.log.info('End reading Slack')
-
-    #def deleteSlack(self, theChannel, ts):
-    #    self['sc'].api_call("chat.delete", channel=theChannel, ts=ts) 
 
     def forwardCmd(self, mess, args):
         self.log.info("Begin forward %s"%mess)
         if args.find(' ') >= 0:
-            cmd, argsS = args.split()
+            argsS = args.split()
+            cmd = argsS[0]
+            argsS = argsS[1:]
         else:
             cmd = args
             argsS = ""
-        self.publishSlack(mess=mess, 
-                usr=self['userName'], host= self['userHost'], 
-                typ = 'Cmd' , cmd = cmd, args = argsS)
+            
+        msgJ = self.prepareMessage(mess=mess, usr=self['userName'], 
+                host= self['userHost'], typ = 'Cmd' , cmd = cmd, args = argsS)
+        chan = self['chan']
+        self['sc'].publishPost(chan, msgJ)
         self.log.info("End forward %s"%mess)
 
     @botcmd
