@@ -59,7 +59,7 @@ class ErrForward(BotPlugin):
         chan = self['chan']
         self['sc'].publishPost(chan, msgJ)
         
-        self.start_poller(60, self.readSlack)
+        self.start_poller(60, self.managePosts)
         self.log.info('ErrForward has been activated')
 
     def get_configuration_template(self):
@@ -238,17 +238,15 @@ class ErrForward(BotPlugin):
             self['sc'].deletePost(msg['ts'], chan)
         self.log.info("End manage reply")
 
-    def readSlack(self):
+    def managePosts(self):
         # Don't put yield in this function!
-        self.log.info('Start reading Slack')
+        self.log.info('Start managing posts')
         self.log.info('Slack channel %s' % self['chan'])
 
         chan = self['sc'].getChanId(self['chan'])
         site = self['sc']
         site.setPosts(self['chan'])
                         
-        self.log.info('Slack channel posts %s' % self['sc'].getPosts())
-
         for msg in site.getPosts(): 
             msgJ = self.extractArgs(msg) 
             if ('typ' in msgJ):
