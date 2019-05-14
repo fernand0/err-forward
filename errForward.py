@@ -213,7 +213,7 @@ class ErrForward(BotPlugin):
         
                 chanP = self['chan']
                 self['sc'].publishPost(chanP, msgJ)
-                self.log.info("End forward %s"%mess)
+                self.log.info("End forward %s"%msgJ)
 
                 self['sc'].deletePost(msg['ts'], chan)
         self.log.info("End manage command")
