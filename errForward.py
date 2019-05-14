@@ -217,7 +217,7 @@ class ErrForward(BotPlugin):
         self.log.info("End manage command")
 
     def manageReply(self, chan, msgJ, msg):
-        self.log.info("Starting manage command")
+        self.log.info("Starting manage reply command")
         self.log.info("Is it for me?")
         self.log.debug("User: %s - %s | %s - %s" %
                 (msgJ['userName'], self['userName'], 
