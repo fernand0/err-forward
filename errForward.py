@@ -285,6 +285,11 @@ class ErrForward(BotPlugin):
         yield self.forwardCmd(mess, args)
 
     @botcmd
+    def listB(self, mess, args):
+        yield(self['sc'].getBots())
+        yield(end())
+
+    @botcmd
     def myIP(self, mess, args):
         yield(self.getMyIP())
         yield(end())
