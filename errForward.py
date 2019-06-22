@@ -162,7 +162,25 @@ class ErrForward(BotPlugin):
     def manageCommand(self, chan, msgJ, msg):
         self.log.info("Starting manage command")
         listCommands = self._bot.all_commands
-        if msgJ['cmd'].startswith(self._bot.bot_config.BOT_PREFIX): 
+        self.log.info("Command command %s" % msgJ['cmd'])
+        if msgJ['cmd'].startswith('*'):
+            cmd = msgJ['cmd'][len(self._bot.bot_config.BOT_PREFIX):]
+            bots = self['sc'].getBots()
+            pos = bots.find('[')
+            self.log.info("Bots %s" % bots)
+            self.log.info("Pos %d command" % pos)
+            while pos >= 0:
+                start = bots[pos+1]
+                cmd = start + cmd
+                pos = bots.find('[',pos+1) 
+                self.log.info("Inserting %s command" % cmd)
+                msgJ['cmd'] = cmd
+                cmd = cmd[1:]
+                self.log.info("The new command %s" % msgJ['cmd'])
+                self['sc'].publishPost(self['chan'], msgJ)
+            self['sc'].deletePost(msg['ts'], chan)
+
+        if msgJ['cmd'].startswith(self._bot.bot_config.BOT_PREFIX):
             # Consider avoiding it (?)
             # Maybe we could also have separated the command from
             # args
@@ -214,8 +232,10 @@ class ErrForward(BotPlugin):
                 chanP = self['chan']
                 self['sc'].publishPost(chanP, msgJ)
                 self.log.info("End forward %s"%msgJ)
+            else:
+                self.log.info("Command not available %s"%msgJ)
 
-                self['sc'].deletePost(msg['ts'], chan)
+            self['sc'].deletePost(msg['ts'], chan)
         self.log.info("End manage command")
 
     def manageReply(self, chan, msgJ, msg):
