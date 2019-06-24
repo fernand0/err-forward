@@ -178,9 +178,7 @@ class ErrForward(BotPlugin):
                 cmd = cmd[1:]
                 self.log.info("The new command %s" % msgJ['cmd'])
                 self['sc'].publishPost(self['chan'], msgJ)
-            self['sc'].deletePost(msg['ts'], chan)
-
-        if msgJ['cmd'].startswith(self._bot.bot_config.BOT_PREFIX):
+        elif msgJ['cmd'].startswith(self._bot.bot_config.BOT_PREFIX):
             # Consider avoiding it (?)
             # Maybe we could also have separated the command from
             # args
@@ -235,7 +233,7 @@ class ErrForward(BotPlugin):
             else:
                 self.log.info("Command not available %s"%msgJ)
 
-            self['sc'].deletePost(msg['ts'], chan)
+        self['sc'].deletePost(msg['ts'], chan)
         self.log.info("End manage command")
 
     def manageReply(self, chan, msgJ, msg):
