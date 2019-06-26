@@ -101,8 +101,7 @@ class ErrForward(BotPlugin):
             #    frm = "-"
 
         if args and typ != 'Msg':
-            self.log.info("Args %s"%args)
-            self.log.info("Type %s"%type(args))
+            self.log.info("Args _%s_"%args)
             args = urllib.parse.quote(args)
 
         msg = {'userName': usr, 'userHost': host, 
@@ -288,6 +287,7 @@ class ErrForward(BotPlugin):
             cmd = args
             argsS = ""
             
+        self.log.info("Before args: *%s*"% argS)
         msgJ = self.prepareMessage(mess=mess, usr=self['userName'], 
                 host= self['userHost'], typ = 'Cmd' , cmd = cmd, args = argsS)
         chan = self['chan']
