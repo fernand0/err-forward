@@ -288,7 +288,7 @@ class ErrForward(BotPlugin):
             cmd = args
             argsS = ""
             
-        self.log.info("Before args: *%s*"% argS)
+        self.log.info("Before args: *%s*"% argsS)
         msgJ = self.prepareMessage(mess=mess, usr=self['userName'], 
                 host= self['userHost'], typ = 'Cmd' , cmd = cmd, args = argsS)
         chan = self['chan']
