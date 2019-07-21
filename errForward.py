@@ -45,9 +45,13 @@ class ErrForward(BotPlugin):
 
         SLACKCREDENTIALS = os.path.expanduser(CONFIGDIR + '/.rssSlack')
         site.setSlackClient(SLACKCREDENTIALS)
+        self['chan'] = str(self._check_config('channel'))
+        theChan = '#tavern-of-the-bots'
+        print("Chan %s" % theChan)
+        site.sc.chat_postMessage(channel = theChan, text = 'Test')
+        self.log.info("Type %s" % dir(self))
 
         self['sc'] = site
-        self['chan'] = str(self._check_config('channel'))
         self['userName'] = pwd.getpwuid(os.getuid())[0]
         self['userHost'] = os.uname()[1]
 
