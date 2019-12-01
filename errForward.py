@@ -266,6 +266,7 @@ class ErrForward(BotPlugin):
         chan = self['sc'].getChanId(self['chan'])
         site = self['sc']
         site.setPosts(self['chan'])
+        self.log.info("Messages %s" % str(site.getPosts()))
                         
         for msg in site.getPosts(): 
             msgJ = self.extractArgs(msg) 
