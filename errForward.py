@@ -97,8 +97,6 @@ class ErrForward(BotPlugin):
         if not frm: 
             if mess: 
                 frm = mess.frm 
-            #elif frm: 
-            #    frm = "-"
 
         if args and typ != 'Msg':
             self.log.info("Args _%s_"%args)
@@ -164,17 +162,13 @@ class ErrForward(BotPlugin):
         self.log.info("Command command %s" % msgJ['cmd'])
         if msgJ['cmd'].startswith('*'):
             cmd = msgJ['cmd'][len(self._bot.bot_config.BOT_PREFIX):]
-            bots = self['sc'].getBots()
-            pos = bots.find('[')
+            bots = self['sc'].getBots().split('\n')
             self.log.info("Bots %s" % bots)
-            self.log.info("Pos %d command" % pos)
-            while pos >= 0:
-                start = bots[pos+1]
-                cmd = start + cmd
-                pos = bots.find('[',pos+1) 
-                self.log.info("Inserting %s command" % cmd)
-                msgJ['cmd'] = cmd
-                cmd = cmd[1:]
+            for bot in bots:
+                start = bot[1]
+                cmdF = start + cmd
+                self.log.info("Inserting %s command" % cmdF)
+                msgJ['cmd'] = cmdF
                 self.log.info("The new command %s" % msgJ['cmd'])
                 self['sc'].publishPost(self['chan'], msgJ)
             self['sc'].deletePost(msg['ts'], chan)
@@ -280,7 +274,8 @@ class ErrForward(BotPlugin):
         self.log.info('End reading Slack')
 
     def forwardCmd(self, mess, args):
-        self.log.info("Begin forward %s"%mess)
+        self.log.info("Begin forward %s from %s" % (mess, mess.frm))
+        self.log.info("Args: *%s*"% args)
         if args.find(' ') >= 0:
             argsS = args.split()
             cmd = argsS[0]
@@ -289,6 +284,7 @@ class ErrForward(BotPlugin):
             cmd = args
             argsS = ""
             
+        self.log.info("Command: *%s*"% cmd)
         self.log.info("Before args: *%s*"% argsS)
         msgJ = self.prepareMessage(mess=mess, usr=self['userName'], 
                 host= self['userHost'], typ = 'Cmd' , cmd = cmd, args = argsS)
