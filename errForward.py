@@ -108,34 +108,6 @@ class ErrForward(BotPlugin):
 
         return(msgJ)
 
-
-    #def publish(self, usr="", host="", frm="", mess = "", 
-    #        typ ="", cmd = "", args =""):
-
-    #    if not frm: 
-    #        if mess: 
-    #            frm = mess.frm 
-    #        #elif frm: 
-    #        #    frm = "-"
-
-    #    if args and typ != 'Msg':
-    #        args = urllib.parse.quote(args)
-
-    #    msg = {'userName': usr, 'userHost': host, 
-    #            'frm': str(frm), 'typ': typ, 'cmd': cmd, 'args': args }
-    #    msgJ = json.dumps(msg)
-
-    #    chan = self['chan']
-    #    self['sc'].publishPost(chan, msgJ)
-
-    #def normalizedChan(self, chan): 
-    #    self.log.info('Searching for channel %s' % chan)
-    #    chanList = self['sc'].api_call("channels.list")['channels'] 
-    #    for channel in chanList: 
-    #        if channel['name_normalized'] == chan:
-    #            return(channel['id'])
-    #    return('')
-
     def extractArgs(self, msg):
         self.log.info("Converting args")
         self.log.info("Msg: %s" % msg)
@@ -226,6 +198,7 @@ class ErrForward(BotPlugin):
                 self.log.info("End forward %s"%msgJ)
             else:
                 self.log.info("Command not available %s"%msgJ)
+
             self['sc'].deletePost(msg['ts'], chan)
 
         self.log.info("End manage command")
@@ -294,18 +267,27 @@ class ErrForward(BotPlugin):
 
     @botcmd
     def forward(self, mess, args):
+        """ Command forwarding to another bot
+        """
         yield self.forwardCmd(mess, args)
 
     @botcmd
     def fw(self, mess, args):
+        """ Command forwarding to another bot (abrv)
+        """
         yield self.forwardCmd(mess, args)
 
-    @botcmd
+    @botcmd(template='monospace')
     def listB(self, mess, args):
-        yield(self['sc'].getBots())
+        """ List bots connected to the Slack channel
+        """
+        bots = self['sc'].getBots()
+        yield({'text': bots})
         yield(end())
 
     @botcmd
     def myIP(self, mess, args):
+        """ IP of the bot
+        """
         yield(self.getMyIP())
         yield(end())
