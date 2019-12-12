@@ -128,23 +128,25 @@ class ErrForward(BotPlugin):
             msgJ = ""
         return(msgJ)
 
+    def broadcastCommand(self, msgJ, cmd): 
+        for bot in self['sc'].getBots().split('\n'):
+            self.log.info("Bot %s" % str(bot))
+            start = bot[1]
+            cmdF = start + cmd
+            self.log.info("Inserting %s command" % cmdF)
+            msgJ['cmd'] = cmdF
+            self.log.info("The new command %s" % msgJ['cmd'])
+            self['sc'].publishPost(self['chan'], msgJ)
+
+
     def manageCommand(self, chan, msgJ, msg):
         self.log.info("Starting manage command")
         listCommands = self._bot.all_commands
         self.log.info("Command command %s" % msgJ['cmd'])
-        if msgJ['cmd'].startswith('*'):
-            cmd = msgJ['cmd'][len(self._bot.bot_config.BOT_PREFIX):]
-            bots = self['sc'].getBots().split('\n')
-            self.log.info("Bots %s" % bots)
-            for bot in bots:
-                start = bot[1]
-                cmdF = start + cmd
-                self.log.info("Inserting %s command" % cmdF)
-                msgJ['cmd'] = cmdF
-                self.log.info("The new command %s" % msgJ['cmd'])
-                self['sc'].publishPost(self['chan'], msgJ)
-            self['sc'].deletePost(msg['ts'], chan)
-        elif msgJ['cmd'].startswith(self._bot.bot_config.BOT_PREFIX):
+        cmd = msgJ['cmd'][len(self._bot.bot_config.BOT_PREFIX):]
+        if cmd.startswith('*'):
+            self.broadcastCommand(self, msgJ, cmd)
+        elif cmd.startswith(self._bot.bot_config.BOT_PREFIX):
             # Consider avoiding it (?)
             # Maybe we could also have separated the command from
             # args
@@ -199,7 +201,10 @@ class ErrForward(BotPlugin):
             else:
                 self.log.info("Command not available %s"%msgJ)
 
-            self['sc'].deletePost(msg['ts'], chan)
+        else: 
+            self.log.info("This should not happen")
+        self['sc'].deletePost(msg['ts'], chan)
+
 
         self.log.info("End manage command")
 
