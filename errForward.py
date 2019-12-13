@@ -141,12 +141,13 @@ class ErrForward(BotPlugin):
 
     def manageCommand(self, chan, msgJ, msg):
         self.log.info("Starting manage command")
-        self.log.info("Command command %s" % msgJ['cmd'])
+        self.log.info("Command %s" % msgJ['cmd'])
         cmd = msgJ['cmd']
         lenPrefix = len(self._bot.bot_config.BOT_PREFIX)
         prefix = cmd[:lenPrefix]
         cmd = cmd[lenPrefix:]
         self.log.info("Bot prefix %s" % self._bot.bot_config.BOT_PREFIX)
+        self['sc'].deletePost(msg['ts'], chan)
         if prefix == '*':
             self.broadcastCommand(self, msgJ, cmd)
         elif prefix == self._bot.bot_config.BOT_PREFIX:
@@ -158,33 +159,29 @@ class ErrForward(BotPlugin):
             if cmd in listCommands:
                 method = listCommands[cmd]                   
                 txtR = ''
+                self.log.info("mmsg %s" %msgJ['args'])
+                if msgJ['args']:
+                    newArgs = msgJ['args']
+                    newMsg = ""
+                else:
+                    # There is no from, we need to set some. We will use
+                    # one of the bot admins
+                    newMsg = Message(frm= self._bot.build_identifier(self.bot_config.BOT_ADMINS[0]))
+                    self.log.info("newFrm %s" % newMsg.frm)
+                    newArgs = ""
+
                 if inspect.isgeneratorfunction(method): 
-                    replies = method("", msgJ['args']) 
+                    replies = method(newMsg, newArgs) 
                     for reply in replies: 
                         if isinstance(reply, str):
                             txtR = txtR + '\n' + reply 
                 else: 
-                    self.log.info("mmsg %s" %msgJ['args'])
-                    if msgJ['args']:
-                        newArgs = msgJ['args']
-                        newMsg = ""
-                    else:
-                        # There is no from, we need to set some. We will use
-                        # one of the bot admins
-                        newMsg = Message(frm= self._bot.build_identifier(self.bot_config.BOT_ADMINS[0]))
-                        self.log.info("newFrm %s" % newMsg.frm)
-                        # Do we need to delete the message before executing the
-                        # command?
-                        # At leas it can be true when restarting the bot:
-                        newArgs = ""
-
-                    self['sc'].deletePost(msg['ts'], chan)
                     reply = method(newMsg, newArgs) 
 
                     if isinstance(reply,str):
                         txtR = txtR + reply
                     else:
-                        # What happens if ther is no template?
+                        # What happens if there is no template?
                         # https://github.com/errbotio/errbot/blob/master/errbot/core.py
                         self.log.debug("tenv -> %s%s" 
                                 % (method._err_command_template,
@@ -200,12 +197,9 @@ class ErrForward(BotPlugin):
                 self['sc'].publishPost(chanP, msgJ)
                 self.log.info("End forward %s"%msgJ)
             else:
-                self.log.info("Command not available %s"%msgJ)
+                self.log.info("Command not available %s in %s"%(cmd, msgJ))
         else: 
-            self.log.info("This should not happen")
-        self['sc'].deletePost(msg['ts'], chan)
-
-
+            self.log.info("This should not happen %s in %s"%(cmd, msgJ))
         self.log.info("End manage command")
 
     def manageReply(self, chan, msgJ, msg):
