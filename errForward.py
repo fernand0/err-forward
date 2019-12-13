@@ -141,24 +141,22 @@ class ErrForward(BotPlugin):
 
     def manageCommand(self, chan, msgJ, msg):
         self.log.info("Starting manage command")
-        listCommands = self._bot.all_commands
         self.log.info("Command command %s" % msgJ['cmd'])
-        cmd = msgJ['cmd'][len(self._bot.bot_config.BOT_PREFIX):]
-        if cmd.startswith('*'):
+        cmd = msgJ['cmd']
+        lenPrefix = len(self._bot.bot_config.BOT_PREFIX)
+        prefix = cmd[:lenPrefix]
+        cmd = cmd[lenPrefix:]
+        self.log.info("Bot prefix %s" % self._bot.bot_config.BOT_PREFIX)
+        if prefix == '*':
             self.broadcastCommand(self, msgJ, cmd)
-        elif cmd.startswith(self._bot.bot_config.BOT_PREFIX):
+        elif prefix == self._bot.bot_config.BOT_PREFIX:
             # Consider avoiding it (?)
             # Maybe we could also have separated the command from
             # args
-            cmd = msgJ['cmd'][len(self._bot.bot_config.BOT_PREFIX):]
 
-            self.log.debug("Cmd: %s"% cmd)
+            listCommands = self._bot.all_commands
             if cmd in listCommands:
-                self.log.debug("I'd execute -%s- args -%s-" 
-                        % (cmd, msgJ['args']))
                 method = listCommands[cmd]                   
-                self.log.debug("template -%s-" 
-                        % method._err_command_template)
                 txtR = ''
                 if inspect.isgeneratorfunction(method): 
                     replies = method("", msgJ['args']) 
@@ -168,7 +166,8 @@ class ErrForward(BotPlugin):
                 else: 
                     self.log.info("mmsg %s" %msgJ['args'])
                     if msgJ['args']:
-                        reply = method("", msgJ['args']) 
+                        newArgs = msgJ['args']
+                        newMsg = ""
                     else:
                         # There is no from, we need to set some. We will use
                         # one of the bot admins
@@ -176,9 +175,11 @@ class ErrForward(BotPlugin):
                         self.log.info("newFrm %s" % newMsg.frm)
                         # Do we need to delete the message before executing the
                         # command?
-                        # At leas it can be true when restarting the bot
-                        self['sc'].deletePost(msg['ts'], chan)
-                        reply = method(newMsg, "") 
+                        # At leas it can be true when restarting the bot:
+                        newArgs = ""
+
+                    self['sc'].deletePost(msg['ts'], chan)
+                    reply = method(newMsg, newArgs) 
 
                     if isinstance(reply,str):
                         txtR = txtR + reply
@@ -200,7 +201,6 @@ class ErrForward(BotPlugin):
                 self.log.info("End forward %s"%msgJ)
             else:
                 self.log.info("Command not available %s"%msgJ)
-
         else: 
             self.log.info("This should not happen")
         self['sc'].deletePost(msg['ts'], chan)
