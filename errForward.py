@@ -170,17 +170,15 @@ class ErrForward(BotPlugin):
                     self.log.info("newFrm %s" % newMsg.frm)
                     newArgs = ""
 
-                if inspect.isgeneratorfunction(method): 
-                    replies = method(newMsg, newArgs) 
-                    for reply in replies: 
-                        if isinstance(reply, str):
-                            txtR = txtR + '\n' + reply 
-                else: 
-                    reply = method(newMsg, newArgs) 
+                replies = method(newMsg, newArgs) 
+                if not inspect.isgeneratorfunction(method) and not isinstance(obj, tuple) and not isinstance(obj, list): 
+                    replies = [ replies ]
 
-                    if isinstance(reply,str):
-                        txtR = txtR + reply
+                for reply in replies: 
+                    if isinstance(reply, str):
+                        txtR = txtR + '\n' + reply 
                     else:
+                        self.log.info("Reply not string %s" % str(reply))
                         # What happens if there is no template?
                         # https://github.com/errbotio/errbot/blob/master/errbot/core.py
                         self.log.debug("tenv -> %s%s" 
