@@ -138,7 +138,6 @@ class ErrForward(BotPlugin):
             self.log.info("The new command %s" % msgJ['cmd'])
             self['sc'].publishPost(self['chan'], msgJ)
 
-
     def manageCommand(self, chan, msgJ, msg):
         self.log.info("Starting manage command")
         self.log.info("Command %s" % msgJ['cmd'])
@@ -147,10 +146,11 @@ class ErrForward(BotPlugin):
         prefix = cmd[:lenPrefix]
         cmd = cmd[lenPrefix:]
         self.log.info("Bot prefix %s" % self._bot.bot_config.BOT_PREFIX)
-        self['sc'].deletePost(msg['ts'], chan)
         if prefix == '*':
+            self['sc'].deletePost(msg['ts'], chan)
             self.broadcastCommand(self, msgJ, cmd)
         elif prefix == self._bot.bot_config.BOT_PREFIX:
+            self['sc'].deletePost(msg['ts'], chan)
             # Consider avoiding it (?)
             # Maybe we could also have separated the command from
             # args
@@ -199,7 +199,7 @@ class ErrForward(BotPlugin):
             else:
                 self.log.info("Command not available %s in %s"%(cmd, msgJ))
         else: 
-            self.log.info("This should not happen %s in %s"%(cmd, msgJ))
+            self.log.info("This command is not for me %s in %s"%(cmd, msgJ))
         self.log.info("End manage command")
 
     def manageReply(self, chan, msgJ, msg):
