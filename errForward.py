@@ -128,14 +128,18 @@ class ErrForward(BotPlugin):
             msgJ = ""
         return(msgJ)
 
-    def broadcastCommand(self, msgJ, cmd): 
-        for bot in self['sc'].getBots().split('\n'):
+    def broadcastCommand(self, msg, cmd): 
+        for bot in self['sc'].getBots():#.split('\n'):
             self.log.info("Bot %s" % str(bot))
-            start = bot[1]
+            start = bot[12]
             cmdF = start + cmd
             self.log.info("Inserting %s command" % cmdF)
-            msgJ['cmd'] = cmdF
-            self.log.info("The new command %s" % msgJ['cmd'])
+            self.log.info("Inserting in %s type %s" % (str(msg), type(msg)))
+            #msg['cmd'] = cmdF
+            msgJ = self.prepareMessage(mess=msg['mess'], usr=self['userName'], 
+                host= self['userHost'], typ = 'Cmd' , cmd = cmdF, 
+                args = msg['args']) 
+            self.log.info("The new command %s" % msgJ)
             self['sc'].publishPost(self['chan'], msgJ)
 
     def manageCommand(self, chan, msgJ, msg):
@@ -146,10 +150,7 @@ class ErrForward(BotPlugin):
         prefix = cmd[:lenPrefix]
         cmd = cmd[lenPrefix:]
         self.log.info("Bot prefix %s" % self._bot.bot_config.BOT_PREFIX)
-        if prefix == '*':
-            self['sc'].deletePost(msg['ts'], chan)
-            self.broadcastCommand(self, msgJ, cmd)
-        elif prefix == self._bot.bot_config.BOT_PREFIX:
+        if prefix == self._bot.bot_config.BOT_PREFIX:
             self['sc'].deletePost(msg['ts'], chan)
             # Consider avoiding it (?)
             # Maybe we could also have separated the command from
@@ -256,11 +257,18 @@ class ErrForward(BotPlugin):
             
         self.log.info("Command: *%s*"% cmd)
         self.log.info("Before args: *%s*"% argsS)
-        msgJ = self.prepareMessage(mess=mess, usr=self['userName'], 
-                host= self['userHost'], typ = 'Cmd' , cmd = cmd, args = argsS)
-        chan = self['chan']
-        self['sc'].publishPost(chan, msgJ)
-        self.log.info("End forward %s"%mess)
+        if cmd.startswith('*'):
+            newCmd = cmd[1:]
+            self.log.info("New command %s" % newCmd)
+            msg = {'mess':mess, 'usr':self['userName'], 'host':self['userHost'],
+                    'typ' : 'Cmd' , 'cmd' : newCmd, 'args': argsS} 
+            self.broadcastCommand(msg, newCmd) 
+        else: 
+            msgJ = self.prepareMessage(mess=mess, usr=self['userName'], 
+                host= self['userHost'], typ = 'Cmd' , cmd = cmd, args = argsS) 
+            chan = self['chan'] 
+            self['sc'].publishPost(chan, msgJ) 
+            self.log.info("End forward %s"%mess)
 
     @botcmd
     def forward(self, mess, args):
