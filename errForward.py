@@ -172,7 +172,7 @@ class ErrForward(BotPlugin):
                     newArgs = ""
 
                 replies = method(newMsg, newArgs) 
-                if not inspect.isgeneratorfunction(method) and not isinstance(obj, tuple) and not isinstance(obj, list): 
+                if not inspect.isgeneratorfunction(method) and not isinstance(replies, tuple) and not isinstance(replies, list): 
                     replies = [ replies ]
 
                 for reply in replies: 
