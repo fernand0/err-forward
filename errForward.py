@@ -91,6 +91,12 @@ class ErrForward(BotPlugin):
         s.connect(('google.com', 0))
         return(s.getsockname()[0])
  
+    @botcmd
+    def myIP(self, mess, args):
+        """ IP of the bot
+        """
+        yield(self.getMyIP())
+        yield(end())
     def prepareMessage(self, usr="", host="", frm="", mess = "", 
             typ ="", cmd = "", args =""):
 
@@ -113,61 +119,63 @@ class ErrForward(BotPlugin):
         self.log.info("Msg: %s" % msg)
 
         try:
-            msgJ = json.loads(msg['text'])
+            msgE = json.loads(msg['text'])
             
-            if msgJ['args'] and (msgJ['typ'] != 'Msg'):
+            if msgE['args'] and (msgE['typ'] != 'Msg'):
                 # Unquoting the args
-                self.log.debug("Reply args before: %s " % msgJ['args'])
-                tmpJ = urllib.parse.unquote(msgJ['args'])
-                msgJ['args'] = tmpJ
-                self.log.debug("Reply args after: %s " % msgJ['args'])
-                self.log.debug("Reply args after: %s " % msgJ['frm'])
+                self.log.debug("Reply args before: %s " % msgE['args'])
+                tmpJ = urllib.parse.unquote(msgE['args'])
+                msgE['args'] = tmpJ
+                self.log.debug("Reply args after: %s " % msgE['args'])
+                self.log.debug("Reply args after: %s " % msgE['frm'])
                 self.log.info("End Converting")
         except:
-            self.log.info("Error Converting: %s" % msg)
-            msgJ = ""
-        return(msgJ)
+            self.log.info("Error Converting: %s" % str(msg))
+            msgE = None
+        return(msgE)
 
     def broadcastCommand(self, msg, cmd): 
+        self.log.info("Starting Broadcast")
         for bot in self['sc'].getBots():#.split('\n'):
             self.log.info("Bot %s" % str(bot))
-            start = bot[12]
-            cmdF = start + cmd
-            self.log.info("Inserting %s command" % cmdF)
-            self.log.info("Inserting in %s type %s" % (str(msg), type(msg)))
-            #msg['cmd'] = cmdF
+            start = bot[bot.find('[')+1]
+            #  2019-12-16 [,] 159.69.89.133 elmundoesimperfecto 
+            newCmd = start + cmd
+            self.log.info("Inserting %s command" % newCmd)
             msgJ = self.prepareMessage(mess=msg['mess'], usr=self['userName'], 
-                host= self['userHost'], typ = 'Cmd' , cmd = cmdF, 
+                host= self['userHost'], typ = 'Cmd' , cmd = newCmd, 
                 args = msg['args']) 
-            self.log.info("The new command %s" % msgJ)
-            self['sc'].publishPost(self['chan'], msgJ)
+            self.log.debug("The new command %s" % msgJ)
 
-    def manageCommand(self, chan, msgJ, msg):
+            self['sc'].publishPost(self['chan'], msgJ)
+        self.log.info("End Broadcast")
+
+    def manageCommand(self, chan, msgE, msg):
         self.log.info("Starting manage command")
-        self.log.info("Command %s" % msgJ['cmd'])
-        cmd = msgJ['cmd']
+        self.log.info("Command %s" % msgE['cmd'])
+        cmd = msgE['cmd']
         lenPrefix = len(self._bot.bot_config.BOT_PREFIX)
         prefix = cmd[:lenPrefix]
         cmd = cmd[lenPrefix:]
         self.log.info("Bot prefix %s" % self._bot.bot_config.BOT_PREFIX)
         if prefix == self._bot.bot_config.BOT_PREFIX:
+            self.log.info("It's for me")
             self['sc'].deletePost(msg['ts'], chan)
             # Consider avoiding it (?)
-            # Maybe we could also have separated the command from
-            # args
+            # Maybe we could also have separated the command from args
 
             listCommands = self._bot.all_commands
             if cmd in listCommands:
                 method = listCommands[cmd]                   
                 txtR = ''
-                self.log.info("mmsg %s" %msgJ['args'])
-                if msgJ['args']:
-                    newArgs = msgJ['args']
+                self.log.info("Args Forwarded Message %s" %msgE['args'])
+                if msgE['args']:
+                    newArgs = msgE['args']
                     newMsg = ""
                 else:
                     # There is no from, we need to set some. We will use
                     # one of the bot admins
-                    newMsg = Message(frm= self._bot.build_identifier(self.bot_config.BOT_ADMINS[0]))
+                    newMsg = Message(frm = self._bot.build_identifier(self.bot_config.BOT_ADMINS[0]))
                     self.log.info("newFrm %s" % newMsg.frm)
                     newArgs = ""
 
@@ -187,40 +195,42 @@ class ErrForward(BotPlugin):
                                     '.md'))
                         txtR = txtR + tenv().get_template(method._err_command_template+'.md').render(reply)
 
-                msgJ = self.prepareMessage(typ = 'Rep', usr= msgJ['userName'],
-                        host=msgJ['userHost'], frm = msgJ['frm'], args = txtR)
+                replyMsg = self.prepareMessage(typ = 'Rep', 
+                        usr= msgE['userName'], host=msgE['userHost'], 
+                        frm = msgE['frm'], args = txtR)
                 # Split long Rep.
                 # Adding a new type of Rep?
         
                 chanP = self['chan']
-                self['sc'].publishPost(chanP, msgJ)
-                self.log.info("End forward %s"%msgJ)
+                self['sc'].publishPost(chanP, replyMsg)
+                self.log.info("End forward")
             else:
-                self.log.info("Command not available %s in %s"%(cmd, msgJ))
+                self.log.info("Command not available %s in %s"%(cmd, msgE))
         else: 
-            self.log.info("This command is not for me %s in %s"%(cmd, msgJ))
+            self.log.info("This command is not for me %s in %s"%(cmd, msgE))
         self.log.info("End manage command")
 
-    def manageReply(self, chan, msgJ, msg):
+    def manageReply(self, chan, msgE, msg):
         self.log.info("Starting manage reply command")
-        self.log.info("Is it for me?")
+        self.log.info("Command %s" % msgE['cmd'])
         self.log.debug("User: %s - %s | %s - %s" %
-                (msgJ['userName'], self['userName'], 
-                    msgJ['userHost'], self['userHost']))
-        if ((msgJ['userName'] == self['userName']) 
-                and (msgJ['userHost'] == self['userHost'])):
+                (msgE['userName'], self['userName'], 
+                    msgE['userHost'], self['userHost']))
+        if ((msgE['userName'] == self['userName']) 
+                and (msgE['userHost'] == self['userHost'])):
             # It's for me
-            self.log.info("Yes. It's for me")
-            replies = msgJ['args'] 
-            if not (msgJ['frm'] == '-'):
-                msgTo = self._bot.build_identifier(msgJ['frm'])
+            self.log.info("It's for me")
+            self['sc'].deletePost(msg['ts'], chan)
+            
+            replies = msgE['args'] 
+            if not (msgE['frm'] == '-'):
+                msgTo = self._bot.build_identifier(msgE['frm'])
             else:
                 msgTo = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
             # Escaping some markdown. Maybe we will need more
             replies = replies.replace('_','\_')
             
             self.send(msgTo, replies)
-            self['sc'].deletePost(msg['ts'], chan)
         self.log.info("End manage reply")
 
     def managePosts(self):
@@ -234,53 +244,53 @@ class ErrForward(BotPlugin):
         self.log.info("Messages %s" % str(site.getPosts()))
                         
         for msg in site.getPosts(): 
-            msgJ = self.extractArgs(msg) 
-            if ('typ' in msgJ):
-                if msgJ['typ'] == 'Cmd':                    
+            msgE = self.extractArgs(msg) 
+            if ('typ' in msgE): 
+                if msgE['typ'] == 'Cmd': 
                     # It's a command 
-                    self.manageCommand(chan, msgJ, msg) 
-                elif msgJ['typ'] == 'Rep':                    
+                    self.manageCommand(chan, msgE, msg) 
+                elif msgE['typ'] == 'Rep':                    
                     # It's a reply 
-                    self.manageReply(chan, msgJ, msg)
-        self.log.info('End reading Slack')
+                    self.manageReply(chan, msgE, msg)
+        self.log.info('End managing posts')
 
-    def forwardCmd(self, mess, args):
+    def forwardCommand(self, mess, args):
         self.log.info("Begin forward %s from %s" % (mess, mess.frm))
         self.log.info("Args: *%s*"% args)
         if args.find(' ') >= 0:
             argsS = args.split()
             cmd = argsS[0]
-            argsS = ' '.join(argsS[1:])
+            newArgs = ' '.join(argsS[1:])
         else:
             cmd = args
-            argsS = ""
+            newArgs = ""
             
         self.log.info("Command: *%s*"% cmd)
-        self.log.info("Before args: *%s*"% argsS)
+        self.log.info("Args before: *%s*"% newArgs)
         if cmd.startswith('*'):
             newCmd = cmd[1:]
             self.log.info("New command %s" % newCmd)
             msg = {'mess':mess, 'usr':self['userName'], 'host':self['userHost'],
-                    'typ' : 'Cmd' , 'cmd' : newCmd, 'args': argsS} 
+                    'typ' : 'Cmd' , 'cmd' : newCmd, 'args': newArgs} 
             self.broadcastCommand(msg, newCmd) 
         else: 
-            msgJ = self.prepareMessage(mess=mess, usr=self['userName'], 
-                host= self['userHost'], typ = 'Cmd' , cmd = cmd, args = argsS) 
+            msgE = self.prepareMessage(mess=mess, usr=self['userName'], 
+                host= self['userHost'], typ = 'Cmd' , cmd = cmd, args = newArgs) 
             chan = self['chan'] 
-            self['sc'].publishPost(chan, msgJ) 
-            self.log.info("End forward %s"%mess)
+            self['sc'].publishPost(chan, msgE) 
+        self.log.info("End forward %s"%mess)
 
     @botcmd
     def forward(self, mess, args):
         """ Command forwarding to another bot
         """
-        yield self.forwardCmd(mess, args)
+        yield self.forwardCommand(mess, args)
 
     @botcmd
     def fw(self, mess, args):
         """ Command forwarding to another bot (abrv)
         """
-        yield self.forwardCmd(mess, args)
+        yield self.forwardCommand(mess, args)
 
     @botcmd(template='monospace')
     def listB(self, mess, args):
@@ -290,9 +300,4 @@ class ErrForward(BotPlugin):
         yield({'text': bots})
         yield(end())
 
-    @botcmd
-    def myIP(self, mess, args):
-        """ IP of the bot
-        """
-        yield(self.getMyIP())
-        yield(end())
+
