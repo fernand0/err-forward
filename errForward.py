@@ -116,22 +116,28 @@ class ErrForward(BotPlugin):
 
     def extractArgs(self, msg):
         self.log.info("Converting args")
-        self.log.info("Msg: %s" % msg)
+        self.log.debug("Msg: %s" % msg)
 
-        try:
-            msgE = json.loads(msg['text'])
-            
-            if msgE['args'] and (msgE['typ'] != 'Msg'):
-                # Unquoting the args
-                self.log.debug("Reply args before: %s " % msgE['args'])
-                tmpJ = urllib.parse.unquote(msgE['args'])
-                msgE['args'] = tmpJ
-                self.log.debug("Reply args after: %s " % msgE['args'])
-                self.log.debug("Reply args after: %s " % msgE['frm'])
-                self.log.info("End Converting")
-        except:
-            self.log.info("Error Converting: %s" % str(msg))
+        if 'text' in msg: 
+            try: 
+                msgE = json.loads(msg['text']) 
+            except: 
+                self.log.info("Error Converting: %s" % str(msg)) 
+                msgE = msg['text']
+        else: 
+            self.log.info("No text!")
             msgE = None
+            
+        if msgE and ('args' in msgE) \
+              and ('type' in msgE) and (msgE['typ'] != 'Msg'):
+            # Unquoting the args
+            self.log.debug("Reply args before: %s " % msgE['args'])
+            tmpJ = urllib.parse.unquote(msgE['args'])
+            msgE['args'] = tmpJ
+            self.log.debug("Reply args after: %s " % msgE['args'])
+            self.log.debug("Reply args after: %s " % msgE['frm'])
+            self.log.info("End Converting")
+
         return(msgE)
 
     def broadcastCommand(self, msg, cmd): 
@@ -157,7 +163,7 @@ class ErrForward(BotPlugin):
         lenPrefix = len(self._bot.bot_config.BOT_PREFIX)
         prefix = cmd[:lenPrefix]
         cmd = cmd[lenPrefix:]
-        self.log.info("Bot prefix %s" % self._bot.bot_config.BOT_PREFIX)
+        self.log.debug("Bot prefix %s" % self._bot.bot_config.BOT_PREFIX)
         if prefix == self._bot.bot_config.BOT_PREFIX:
             self.log.info("It's for me")
             self['sc'].deletePost(msg['ts'], chan)
@@ -207,7 +213,8 @@ class ErrForward(BotPlugin):
             else:
                 self.log.info("Command not available %s in %s"%(cmd, msgE))
         else: 
-            self.log.info("This command is not for me %s in %s"%(cmd, msgE))
+            self.log.info("Not for me")
+            self.log.debug("Not for me %s in %s"%(cmd, msgE))
         self.log.info("End manage command")
 
     def manageReply(self, chan, msgE, msg):
@@ -244,8 +251,10 @@ class ErrForward(BotPlugin):
         self.log.info("Messages %s" % str(site.getPosts()))
                         
         for msg in site.getPosts(): 
+            self.log.debug("msg %s" % str(msg))
             msgE = self.extractArgs(msg) 
-            if ('typ' in msgE): 
+            self.log.debug("msgE %s" % str(msgE))
+            if msgE and ('typ' in msgE): 
                 if msgE['typ'] == 'Cmd': 
                     # It's a command 
                     self.manageCommand(chan, msgE, msg) 
