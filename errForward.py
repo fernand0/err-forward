@@ -115,14 +115,14 @@ class ErrForward(BotPlugin):
         return(msgJ)
 
     def extractArgs(self, msg):
-        self.log.info("Converting args")
+        self.log.info("   Converting args")
         self.log.debug("Msg: %s" % msg)
 
         if 'text' in msg: 
             try: 
                 msgE = json.loads(msg['text']) 
             except: 
-                self.log.info("Error Converting: %s" % str(msg)) 
+                self.log.info("    Error Converting json: %s" % str(msg)) 
                 msgE = msg['text']
         else: 
             self.log.info("No text!")
@@ -248,7 +248,7 @@ class ErrForward(BotPlugin):
         chan = self['sc'].getChanId(self['chan'])
         site = self['sc']
         site.setPosts(self['chan'])
-        self.log.info("Messages %s" % str(site.getPosts()))
+        self.log.debug("Messages %s" % str(site.getPosts()))
                         
         for msg in site.getPosts(): 
             self.log.debug("msg %s" % str(msg))
