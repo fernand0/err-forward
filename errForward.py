@@ -229,7 +229,7 @@ class ErrForward(BotPlugin):
             self.log.info("It's for me")
             self['sc'].deletePost(msg['ts'], chan)
             
-            replies = msgE['args'] 
+            replies = urllib.parse.unquote(msgE['args'])
             if not (msgE['frm'] == '-'):
                 msgTo = self._bot.build_identifier(msgE['frm'])
             else:
