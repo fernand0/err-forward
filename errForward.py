@@ -176,7 +176,7 @@ class ErrForward(BotPlugin):
                 txtR = ''
                 self.log.info("Args Forwarded Message %s" %msgE['args'])
                 if msgE['args']:
-                    newArgs = msgE['args']
+                    newArgs = urllib.parse.unquote(msgE['args'])
                     newMsg = ""
                 else:
                     # There is no from, we need to set some. We will use
