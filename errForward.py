@@ -115,14 +115,14 @@ class ErrForward(BotPlugin):
         return(msgJ)
 
     def extractArgs(self, msg):
-        self.log.info("   Converting args")
+        self.log.debug("   Converting args")
         self.log.debug("Msg: %s" % msg)
 
         if 'text' in msg: 
             try: 
                 msgE = json.loads(msg['text']) 
             except: 
-                self.log.info("    Error Converting json: %s" % str(msg)) 
+                self.log.debug("    Error Converting json: %s" % str(msg)) 
                 msgE = msg['text']
         else: 
             self.log.info("No text!")
@@ -130,13 +130,14 @@ class ErrForward(BotPlugin):
             
         if msgE and ('args' in msgE) \
               and ('type' in msgE) and (msgE['typ'] != 'Msg'):
+            self.log.info("   Converting args")
             # Unquoting the args
             self.log.debug("Reply args before: %s " % msgE['args'])
             tmpJ = urllib.parse.unquote(msgE['args'])
             msgE['args'] = tmpJ
             self.log.debug("Reply args after: %s " % msgE['args'])
             self.log.debug("Reply args after: %s " % msgE['frm'])
-            self.log.info("End Converting")
+            self.log.info("   End Converting")
 
         return(msgE)
 
