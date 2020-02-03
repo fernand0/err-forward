@@ -244,7 +244,7 @@ class ErrForward(BotPlugin):
     def managePosts(self):
         # Don't put yield in this function!
         self.log.info('Start managing posts')
-        self.log.info('Slack channel %s' % self['chan'])
+        self.log.info(' Slack channel %s' % self['chan'])
 
         chan = self['sc'].getChanId(self['chan'])
         site = self['sc']
