@@ -1,7 +1,3 @@
-from errbot import BotPlugin, botcmd, webhook
-from errbot.backends.base import Message, Identifier
-from errbot.templating import tenv
-import moduleSlack
 import configparser
 import os, pwd
 import datetime
@@ -9,8 +5,19 @@ import inspect
 import re
 import json
 import urllib.parse
+import sys
+
+
+from errbot import BotPlugin, botcmd, webhook
+from errbot.backends.base import Message, Identifier
+from errbot.templating import tenv
+
+# Needs to set $PYTHONPATH to the dir where this modules are located
+# or
+# sys.path.append('/home/ftricas/usr/src/socialModules')
 
 from configMod import *
+import moduleSlack
 
 def end(msg=""):
     return("END"+msg)
@@ -52,9 +59,11 @@ class ErrForward(BotPlugin):
         self['userHost'] = os.uname()[1]
 
         msgJ = self.prepareMessage(typ = 'Msg', 
-                args = 'Hello! IP: %s. Commands with [%s]. Name: %s' % 
-                (self.getMyIP(), 
-                    self._bot.bot_config.BOT_PREFIX, self['userHost']))
+                args = 'Hello! IP: {}. Commands [{}]. Name: {}. Backend: {}'.format( self.getMyIP(), 
+                self._bot.bot_config.BOT_PREFIX, 
+                self['userHost'],
+                self._bot.bot_config.BACKEND, 
+                ))
 
         chan = self['chan']
         self['sc'].publishPost(chan, msgJ)
