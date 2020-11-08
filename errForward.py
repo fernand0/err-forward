@@ -17,14 +17,9 @@ from errbot.templating import tenv
 # sys.path.append('/home/ftricas/usr/src/socialModules')
 
 from configMod import *
-import moduleSlack
 
 def end(msg=""):
     return("END"+msg)
-
-#class MyMessage():
-#    def __init__(self):
-#        self.frm =''
 
 class ErrForward(BotPlugin):
     """
@@ -37,33 +32,31 @@ class ErrForward(BotPlugin):
 
         You should delete it if you're not using it to override any default behaviour
         """
-        #super(Skeleton, self).activate()
         
         super().activate()
         self.log.info("Let's go")
 
-        config = configparser.ConfigParser()
-        config.read(CONFIGDIR + '/.rssBlogs')
+        myModule = 'moduleGitter'
+        #myModule = 'moduleSlack'
+        import importlib
+        mod = importlib.import_module(myModule) 
+        cls = getattr(mod, myModule)
+        site = cls()
+        site.setUrl(myModule)
 
-        site = moduleSlack.moduleSlack()
-        section = "Blog7"
-        url = config.get(section, "url")
-        site.setUrl(url)
-
-        SLACKCREDENTIALS = os.path.expanduser(CONFIGDIR + '/.rssSlack')
-        site.setSlackClient(SLACKCREDENTIALS)
+        site.setClient()
 
         self['sc'] = site
         self['chan'] = str(self._check_config('channel'))
         self['userName'] = pwd.getpwuid(os.getuid())[0]
         self['userHost'] = os.uname()[1]
 
-        msgJ = self.prepareMessage(typ = 'Msg', 
-                args = 'Hello! IP: {}. Commands [{}]. Name: {}. Backend: {}'.format( self.getMyIP(), 
-                self._bot.bot_config.BOT_PREFIX, 
-                self['userHost'],
-                self._bot.bot_config.BACKEND, 
-                ))
+        msgJ = self.prepareMessage(
+                typ = 'Msg', 
+                args = 'Hello! IP: {}. Commands [{}]. Name: {}. Backend: {}'\
+                        .format(self.getMyIP(), 
+                            self._bot.bot_config.BOT_PREFIX, 
+                            self['userHost'], self._bot.bot_config.BACKEND, ))
 
         chan = self['chan']
         self['sc'].publishPost(chan, msgJ)
@@ -91,7 +84,8 @@ class ErrForward(BotPlugin):
     def callback_message(self, mess):
         userName = self['userName']
         userHost = self['userHost']
-        if (mess.body.find(userName) == -1) or (mess.body.find(hostName) == -1):
+        if ((mess.body.find(userName) == -1) 
+                or (mess.body.find(hostName) == -1)):
             yield("Trying!")
 
     def getMyIP(self):
@@ -106,8 +100,9 @@ class ErrForward(BotPlugin):
         """
         yield(self.getMyIP())
         yield(end())
-    def prepareMessage(self, usr="", host="", frm="", mess = "", 
-            typ ="", cmd = "", args =""):
+
+    def prepareMessage(self, usr="", host="", frm="", 
+            mess = "", typ ="", cmd = "", args =""):
 
         if not frm: 
             if mess: 
@@ -152,10 +147,9 @@ class ErrForward(BotPlugin):
 
     def broadcastCommand(self, msg, cmd): 
         self.log.info("Starting Broadcast")
-        for bot in self['sc'].getBots():#.split('\n'):
+        for bot in self['sc'].getBots(self['chan']):
             self.log.info("Bot %s" % str(bot))
             start = bot[bot.find('[')+1]
-            #  2019-12-16 [,] 159.69.89.133 elmundoesimperfecto 
             newCmd = start + cmd
             self.log.info("Inserting %s command" % newCmd)
             msgJ = self.prepareMessage(mess=msg['mess'], usr=self['userName'], 
@@ -176,7 +170,8 @@ class ErrForward(BotPlugin):
         self.log.debug("Bot prefix %s" % self._bot.bot_config.BOT_PREFIX)
         if prefix == self._bot.bot_config.BOT_PREFIX:
             self.log.info("It's for me")
-            self['sc'].deletePost(msg['ts'], chan)
+            self.log.info("It's for me {} {}".format(msg['id'],chan))
+            self['sc'].deletePost(msg['id'], chan)
             # Consider avoiding it (?)
             # Maybe we could also have separated the command from args
 
@@ -209,7 +204,9 @@ class ErrForward(BotPlugin):
                         self.log.debug("tenv -> %s%s" 
                                 % (method._err_command_template,
                                     '.md'))
-                        txtR = txtR + tenv().get_template(method._err_command_template+'.md').render(reply)
+                        txtR = txtR + tenv().get_template(
+                                method._err_command_template 
+                                + '.md').render(reply)
 
                 replyMsg = self.prepareMessage(typ = 'Rep', 
                         usr= msgE['userName'], host=msgE['userHost'], 
@@ -237,7 +234,7 @@ class ErrForward(BotPlugin):
                 and (msgE['userHost'] == self['userHost'])):
             # It's for me
             self.log.info("It's for me")
-            self['sc'].deletePost(msg['ts'], chan)
+            self['sc'].deletePost(msg['id'], chan)
             
             replies = urllib.parse.unquote(msgE['args'])
             if not (msgE['frm'] == '-'):
@@ -259,7 +256,7 @@ class ErrForward(BotPlugin):
         site = self['sc']
         site.setPosts(self['chan'])
         #self.log.debug("Messages %s" % str(site.getPosts()))
-                        
+
         for msg in site.getPosts(): 
             self.log.debug("msg %s" % str(msg))
             msgE = self.extractArgs(msg) 
@@ -289,8 +286,9 @@ class ErrForward(BotPlugin):
         if cmd.startswith('*'):
             newCmd = cmd[1:]
             self.log.info("New command %s" % newCmd)
-            msg = {'mess':mess, 'usr':self['userName'], 'host':self['userHost'],
-                    'typ' : 'Cmd' , 'cmd' : newCmd, 'args': newArgs} 
+            msg = {'mess':mess, 'usr':self['userName'], 
+                    'host':self['userHost'], 'typ' : 'Cmd' , 
+                    'cmd' : newCmd, 'args': newArgs} 
             self.broadcastCommand(msg, newCmd) 
         else: 
             msgE = self.prepareMessage(mess=mess, usr=self['userName'], 
@@ -315,8 +313,7 @@ class ErrForward(BotPlugin):
     def listB(self, mess, args):
         """ List bots connected to the Slack channel
         """
-        bots = self['sc'].getBots()
+        bots = self['sc'].getBots(self['chan'])
         yield({'text': bots})
         yield(end())
-
 
