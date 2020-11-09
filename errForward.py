@@ -36,8 +36,11 @@ class ErrForward(BotPlugin):
         super().activate()
         self.log.info("Let's go")
 
-        myModule = 'moduleGitter'
-        #myModule = 'moduleSlack'
+        #myModule = 'moduleGitter' 
+        #self.idPost = 'id'
+        myModule = 'moduleSlack'
+        self.idPost = 'ts'
+		
         import importlib
         mod = importlib.import_module(myModule) 
         cls = getattr(mod, myModule)
@@ -170,8 +173,8 @@ class ErrForward(BotPlugin):
         self.log.debug("Bot prefix %s" % self._bot.bot_config.BOT_PREFIX)
         if prefix == self._bot.bot_config.BOT_PREFIX:
             self.log.info("It's for me")
-            self.log.info("It's for me {} {}".format(msg['id'],chan))
-            self['sc'].deletePost(msg['id'], chan)
+            self.log.info("It's for me {} {}".format(str(msg),chan))
+            self['sc'].deletePost(msg[self.idPost], chan)
             # Consider avoiding it (?)
             # Maybe we could also have separated the command from args
 
@@ -234,7 +237,7 @@ class ErrForward(BotPlugin):
                 and (msgE['userHost'] == self['userHost'])):
             # It's for me
             self.log.info("It's for me")
-            self['sc'].deletePost(msg['id'], chan)
+            self['sc'].deletePost(msg[self.idPost], chan)
             
             replies = urllib.parse.unquote(msgE['args'])
             if not (msgE['frm'] == '-'):
