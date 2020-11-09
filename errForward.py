@@ -174,7 +174,7 @@ class ErrForward(BotPlugin):
         if prefix == self._bot.bot_config.BOT_PREFIX:
             self.log.info("It's for me")
             self.log.info("It's for me {} {}".format(str(msg),chan))
-            self['sc'].deletePost(msg[self.idPost], chan)
+            result = self['sc'].deletePost(msg[self.idPost], chan)
             # Consider avoiding it (?)
             # Maybe we could also have separated the command from args
 
@@ -189,7 +189,8 @@ class ErrForward(BotPlugin):
                 else:
                     # There is no from, we need to set some. We will use
                     # one of the bot admins
-                    newMsg = Message(frm = self._bot.build_identifier(self.bot_config.BOT_ADMINS[0]))
+                    newMsg = Message(frm = self._bot.build_identifier(
+                        self.bot_config.BOT_ADMINS[0]))
                     self.log.info("newFrm %s" % newMsg.frm)
                     newArgs = ""
 
@@ -255,7 +256,7 @@ class ErrForward(BotPlugin):
         self.log.info('Start managing posts')
         self.log.info(' Slack channel %s' % self['chan'])
 
-        chan = self['sc'].getChanId(self['chan'])
+        chan = self['chan']
         site = self['sc']
         site.setPosts(self['chan'])
         #self.log.debug("Messages %s" % str(site.getPosts()))
