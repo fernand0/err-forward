@@ -48,8 +48,11 @@ class ErrForward(BotPlugin):
         site.setUrl(myModule)
 
         site.setClient()
+        self.log.info("Client client")
 
-        self['sc'] = site
+        self.sc = site
+        #self['sc'] = site
+        # It fails with can't pickle _thread.RLock objects..
         self['chan'] = str(self._check_config('channel'))
         self['userName'] = pwd.getpwuid(os.getuid())[0]
         self['userHost'] = os.uname()[1]
@@ -63,7 +66,8 @@ class ErrForward(BotPlugin):
 
         chan = self['chan']
         self.log.info("Chan: {}".format(chan))
-        self['sc'].publishPost(chan, msgJ)
+        #self['sc'].publishPost(chan, msgJ)
+        self.sc.publishPost(chan, msgJ)
         
         self.start_poller(60, self.managePosts)
         self.log.info('ErrForward has been activated')
@@ -151,7 +155,8 @@ class ErrForward(BotPlugin):
 
     def broadcastCommand(self, msg, cmd): 
         self.log.info("Starting Broadcast")
-        for bot in self['sc'].getBots(self['chan']):
+        #for bot in self['sc'].getBots(self['chan']):
+        for bot in self.sc.getBots(self['chan']):
             self.log.info("Bot %s" % str(bot))
             start = bot[bot.find('[')+1]
             newCmd = start + cmd
@@ -161,7 +166,8 @@ class ErrForward(BotPlugin):
                 args = msg['args']) 
             self.log.debug("The new command %s" % msgJ)
 
-            self['sc'].publishPost(self['chan'], msgJ)
+            #self['sc'].publishPost(self['chan'], msgJ)
+            self.sc.publishPost(self['chan'], msgJ)
         self.log.info("End Broadcast")
 
     def manageCommand(self, chan, msgE, msg):
@@ -175,7 +181,8 @@ class ErrForward(BotPlugin):
         if prefix == self._bot.bot_config.BOT_PREFIX:
             self.log.info("It's for me")
             self.log.info("It's for me {} {}".format(str(msg),chan))
-            result = self['sc'].deletePost(msg[self.idPost], chan)
+            #result = self['sc'].deletePost(msg[self.idPost], chan)
+            result = self.sc.deletePost(msg[self.idPost], chan)
             # Consider avoiding it (?)
             # Maybe we could also have separated the command from args
 
@@ -220,7 +227,8 @@ class ErrForward(BotPlugin):
                 # Adding a new type of Rep?
         
                 chanP = self['chan']
-                self['sc'].publishPost(chanP, replyMsg)
+                #self['sc'].publishPost(chanP, replyMsg)
+                self.sc.publishPost(chanP, replyMsg)
                 self.log.info("End forward")
             else:
                 self.log.info("Command not available %s in %s"%(cmd, msgE))
@@ -239,7 +247,8 @@ class ErrForward(BotPlugin):
                 and (msgE['userHost'] == self['userHost'])):
             # It's for me
             self.log.info("It's for me")
-            self['sc'].deletePost(msg[self.idPost], chan)
+            #self['sc'].deletePost(msg[self.idPost], chan)
+            self.sc.deletePost(msg[self.idPost], chan)
             
             replies = urllib.parse.unquote(msgE['args'])
             if not (msgE['frm'] == '-'):
@@ -258,7 +267,8 @@ class ErrForward(BotPlugin):
         self.log.info(' Slack channel %s' % self['chan'])
 
         chan = self['chan']
-        site = self['sc']
+        #site = self['sc']
+        site = self.sc
         site.setPosts(self['chan'])
         #self.log.debug("Messages %s" % str(site.getPosts()))
 
@@ -299,7 +309,8 @@ class ErrForward(BotPlugin):
             msgE = self.prepareMessage(mess=mess, usr=self['userName'], 
                 host= self['userHost'], typ = 'Cmd' , cmd = cmd, args = newArgs) 
             chan = self['chan'] 
-            self['sc'].publishPost(chan, msgE) 
+            #self['sc'].publishPost(chan, msgE) 
+            self.sc.publishPost(chan, msgE) 
         self.log.info("End forward %s"%mess)
 
     @botcmd
@@ -318,7 +329,8 @@ class ErrForward(BotPlugin):
     def listB(self, mess, args):
         """ List bots connected to the Slack channel
         """
-        bots = self['sc'].getBots(self['chan'])
+        #bots = self['sc'].getBots(self['chan'])
+        bots = self.sc.getBots(self['chan'])
         yield({'text': bots})
         yield(end())
 
