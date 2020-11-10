@@ -62,6 +62,7 @@ class ErrForward(BotPlugin):
                             self['userHost'], self._bot.bot_config.BACKEND, ))
 
         chan = self['chan']
+        self.log.info("Chan: {}".format(chan))
         self['sc'].publishPost(chan, msgJ)
         
         self.start_poller(60, self.managePosts)
