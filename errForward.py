@@ -67,7 +67,7 @@ class ErrForward(BotPlugin):
         chan = self['chan']
         self.log.info("Chan: {}".format(chan))
         #self['sc'].publishPost(chan, msgJ)
-        self.sc.publishPost(chan, msgJ)
+        self.sc.publishPost(msgJ, '', chan)
         
         self.start_poller(60, self.managePosts)
         self.log.info('ErrForward has been activated')
@@ -228,7 +228,7 @@ class ErrForward(BotPlugin):
         
                 chanP = self['chan']
                 #self['sc'].publishPost(chanP, replyMsg)
-                self.sc.publishPost(chanP, replyMsg)
+                self.sc.publishPost(replyMsg, '', chanP)
                 self.log.info("End forward")
             else:
                 self.log.info("Command not available %s in %s"%(cmd, msgE))
@@ -310,7 +310,7 @@ class ErrForward(BotPlugin):
                 host= self['userHost'], typ = 'Cmd' , cmd = cmd, args = newArgs) 
             chan = self['chan'] 
             #self['sc'].publishPost(chan, msgE) 
-            self.sc.publishPost(chan, msgE) 
+            self.sc.publishPost(msgE, '', chan) 
         self.log.info("End forward %s"%mess)
 
     @botcmd
