@@ -30,9 +30,10 @@ class ErrForward(BotPlugin):
         """
         Triggers on plugin activation
 
-        You should delete it if you're not using it to override any default behaviour
-        """
+        You should delete it if you're not using it to override any default
+        behaviour """
         
+        self.log.info("Super activation")
         super().activate()
         self.log.info("Let's go")
 
@@ -53,6 +54,10 @@ class ErrForward(BotPlugin):
         self.sc = site
         #self['sc'] = site
         # It fails with can't pickle _thread.RLock objects..
+        self.log.info("Chan config: {}".format(self._check_config('channel')))
+        if not self.config:
+            self.log.info("ErrForward is not configured. Forbid activation")
+            return
         self['chan'] = str(self._check_config('channel'))
         self['userName'] = pwd.getpwuid(os.getuid())[0]
         self['userHost'] = os.uname()[1]
