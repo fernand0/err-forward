@@ -219,7 +219,7 @@ class ErrForward(BotPlugin):
                         # What happens if there is no template?
                         # https://github.com/errbotio/errbot/blob/master/errbot/core.py
                         if not method._err_command_template: 
-                            txtR = txtR + str(reply)
+                            txtR = f"{txtR} {reply}"
                         else:
                             self.log.debug("tenv -> %s%s" 
                                     % (method._err_command_template,
