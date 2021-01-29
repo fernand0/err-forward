@@ -218,12 +218,15 @@ class ErrForward(BotPlugin):
                         self.log.info("Reply not string %s" % str(reply))
                         # What happens if there is no template?
                         # https://github.com/errbotio/errbot/blob/master/errbot/core.py
-                        self.log.debug("tenv -> %s%s" 
-                                % (method._err_command_template,
-                                    '.md'))
-                        txtR = txtR + tenv().get_template(
-                                method._err_command_template 
-                                + '.md').render(reply)
+                        if not method._err_command_template: 
+                            txtR = txtR + reply
+                        else:
+                            self.log.debug("tenv -> %s%s" 
+                                    % (method._err_command_template,
+                                        '.md'))
+                            txtR = txtR + tenv().get_template(
+                                    method._err_command_template 
+                                    + '.md').render(reply)
 
                 replyMsg = self.prepareMessage(typ = 'Rep', 
                         usr= msgE['userName'], host=msgE['userHost'], 
