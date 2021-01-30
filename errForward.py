@@ -161,7 +161,9 @@ class ErrForward(BotPlugin):
     def broadcastCommand(self, msg, cmd): 
         self.log.info("Starting Broadcast")
         #for bot in self['sc'].getBots(self['chan']):
-        for bot in self.sc.getBots(self['chan']):
+        listBots = self.sc.getBots(self['chan'])
+        self.log.debug(f"Bots: {listBots}")
+        for bot in listBots:
             self.log.info("Bot %s" % str(bot))
             start = bot[bot.find('[')+1]
             newCmd = start + cmd
@@ -172,7 +174,7 @@ class ErrForward(BotPlugin):
             self.log.debug("The new command %s" % msgJ)
 
             #self['sc'].publishPost(self['chan'], msgJ)
-            self.sc.publishPost(self['chan'], msgJ)
+            self.sc.publishPost(msgJ, '', self['chan'])
         self.log.info("End Broadcast")
 
     def manageCommand(self, chan, msgE, msg):
