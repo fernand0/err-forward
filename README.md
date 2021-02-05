@@ -21,4 +21,4 @@ The channel used for communication is a bot config, for example:
 
 All the bots must write and read on the same channel.
 
-If you want a more detailed description of the main ideas you can read [A (non intelligent chatbot multi-interface and distributed as a personal information manager.](https://dev.to/fernand0/a-non-intelligent-chatbot-multi-interface-and-distributed-as-a-personal-information-manager-5b2h) and of, course, do not hesitate to ask.
+If you want a more detailed description of the main ideas you can read [A (non intelligent) chatbot multi-interface and distributed as a personal information manager.](https://dev.to/fernand0/a-non-intelligent-chatbot-multi-interface-and-distributed-as-a-personal-information-manager-5b2h) and of, course, do not hesitate to ask.
