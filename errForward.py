@@ -190,7 +190,10 @@ class ErrForward(BotPlugin):
             self.log.info("It's for me")
             self.log.info("It's for me {} {}".format(str(msg),chan))
             #result = self['sc'].deletePost(msg[self.idPost], chan)
-            result = self.sc.deletePost(msg[self.idPost])
+            oldChan = self.sc.getChannel()
+            self.sc.setChannel(chan)
+            result = self.sc.deletePostId(msg[self.idPost])
+            self.sc.channel = oldChan
             # Consider avoiding it (?)
             # Maybe we could also have separated the command from args
 
@@ -239,6 +242,7 @@ class ErrForward(BotPlugin):
         
                 chanP = self['chan']
                 #self['sc'].publishPost(chanP, replyMsg)
+                self.sc.setChannel(chan)
                 self.sc.publishPost(replyMsg, '', chanP)
                 self.log.info("End forward")
             else:
@@ -259,9 +263,9 @@ class ErrForward(BotPlugin):
             # It's for me
             self.log.info("It's for me")
             #self['sc'].deletePost(msg[self.idPost], chan)
-            oldChan = self.getChannel()
+            oldChan = self.sc.getChannel()
             self.sc.setChannel(chan)
-            self.sc.deletePost(msg[self.idPost])
+            self.sc.deletePostId(msg[self.idPost])
             self.sc.channel = oldChan
             
             replies = urllib.parse.unquote(msgE['args'])
