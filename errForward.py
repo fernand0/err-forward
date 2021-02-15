@@ -259,7 +259,10 @@ class ErrForward(BotPlugin):
             # It's for me
             self.log.info("It's for me")
             #self['sc'].deletePost(msg[self.idPost], chan)
+            oldChan = self.getChannel()
+            self.sc.setChannel(chan)
             self.sc.deletePost(msg[self.idPost])
+            self.sc.channel = oldChan
             
             replies = urllib.parse.unquote(msgE['args'])
             if not (msgE['frm'] == '-'):
