@@ -48,7 +48,7 @@ class ErrForward(BotPlugin):
         site = cls()
         site.setUrl(myModule)
 
-        site.setClient()
+        site.setClient(myModule)
         self.log.info("Client client")
 
         self.sc = site
@@ -59,6 +59,7 @@ class ErrForward(BotPlugin):
             self.log.info("ErrForward is not configured. Forbid activation")
             return
         self['chan'] = str(self._check_config('channel'))
+        site.setChannel(self['chan'])
         self['userName'] = pwd.getpwuid(os.getuid())[0]
         self['userHost'] = os.uname()[1]
 
@@ -189,7 +190,7 @@ class ErrForward(BotPlugin):
             self.log.info("It's for me")
             self.log.info("It's for me {} {}".format(str(msg),chan))
             #result = self['sc'].deletePost(msg[self.idPost], chan)
-            result = self.sc.deletePost(msg[self.idPost], chan)
+            result = self.sc.deletePost(msg[self.idPost])
             # Consider avoiding it (?)
             # Maybe we could also have separated the command from args
 
@@ -258,7 +259,7 @@ class ErrForward(BotPlugin):
             # It's for me
             self.log.info("It's for me")
             #self['sc'].deletePost(msg[self.idPost], chan)
-            self.sc.deletePost(msg[self.idPost], chan)
+            self.sc.deletePost(msg[self.idPost])
             
             replies = urllib.parse.unquote(msgE['args'])
             if not (msgE['frm'] == '-'):
@@ -279,7 +280,7 @@ class ErrForward(BotPlugin):
         chan = self['chan']
         #site = self['sc']
         site = self.sc
-        site.setPosts(self['chan'])
+        site.setPosts()
         #self.log.debug("Messages %s" % str(site.getPosts()))
 
         for msg in site.getPosts(): 
