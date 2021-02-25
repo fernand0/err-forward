@@ -30,9 +30,10 @@ class ErrForward(BotPlugin):
         """
         Triggers on plugin activation
 
-        You should delete it if you're not using it to override any default behaviour
-        """
+        You should delete it if you're not using it to override any default
+        behaviour """
         
+        self.log.info("Super activation")
         super().activate()
         self.log.info("Let's go")
 
@@ -47,13 +48,18 @@ class ErrForward(BotPlugin):
         site = cls()
         site.setUrl(myModule)
 
-        site.setClient()
+        site.setClient(myModule)
         self.log.info("Client client")
 
         self.sc = site
         #self['sc'] = site
         # It fails with can't pickle _thread.RLock objects..
+        self.log.info("Chan config: {}".format(self._check_config('channel')))
+        if not self.config:
+            self.log.info("ErrForward is not configured. Forbid activation")
+            return
         self['chan'] = str(self._check_config('channel'))
+        site.setChannel(self['chan'])
         self['userName'] = pwd.getpwuid(os.getuid())[0]
         self['userHost'] = os.uname()[1]
 
@@ -156,7 +162,9 @@ class ErrForward(BotPlugin):
     def broadcastCommand(self, msg, cmd): 
         self.log.info("Starting Broadcast")
         #for bot in self['sc'].getBots(self['chan']):
-        for bot in self.sc.getBots(self['chan']):
+        listBots = self.sc.getBots(self['chan'])
+        self.log.debug(f"Bots: {listBots}")
+        for bot in listBots:
             self.log.info("Bot %s" % str(bot))
             start = bot[bot.find('[')+1]
             newCmd = start + cmd
@@ -167,7 +175,7 @@ class ErrForward(BotPlugin):
             self.log.debug("The new command %s" % msgJ)
 
             #self['sc'].publishPost(self['chan'], msgJ)
-            self.sc.publishPost(self['chan'], msgJ)
+            self.sc.publishPost(msgJ, '', self['chan'])
         self.log.info("End Broadcast")
 
     def manageCommand(self, chan, msgE, msg):
@@ -182,7 +190,10 @@ class ErrForward(BotPlugin):
             self.log.info("It's for me")
             self.log.info("It's for me {} {}".format(str(msg),chan))
             #result = self['sc'].deletePost(msg[self.idPost], chan)
-            result = self.sc.deletePost(msg[self.idPost], chan)
+            oldChan = self.sc.getChannel()
+            self.sc.setChannel(chan)
+            result = self.sc.deletePostId(msg[self.idPost])
+            self.sc.channel = oldChan
             # Consider avoiding it (?)
             # Maybe we could also have separated the command from args
 
@@ -213,12 +224,15 @@ class ErrForward(BotPlugin):
                         self.log.info("Reply not string %s" % str(reply))
                         # What happens if there is no template?
                         # https://github.com/errbotio/errbot/blob/master/errbot/core.py
-                        self.log.debug("tenv -> %s%s" 
-                                % (method._err_command_template,
-                                    '.md'))
-                        txtR = txtR + tenv().get_template(
-                                method._err_command_template 
-                                + '.md').render(reply)
+                        if not method._err_command_template: 
+                            txtR = f"{txtR} {reply}"
+                        else:
+                            self.log.debug("tenv -> %s%s" 
+                                    % (method._err_command_template,
+                                        '.md'))
+                            txtR = txtR + tenv().get_template(
+                                    method._err_command_template 
+                                    + '.md').render(reply)
 
                 replyMsg = self.prepareMessage(typ = 'Rep', 
                         usr= msgE['userName'], host=msgE['userHost'], 
@@ -228,6 +242,7 @@ class ErrForward(BotPlugin):
         
                 chanP = self['chan']
                 #self['sc'].publishPost(chanP, replyMsg)
+                self.sc.setChannel(chan)
                 self.sc.publishPost(replyMsg, '', chanP)
                 self.log.info("End forward")
             else:
@@ -248,7 +263,10 @@ class ErrForward(BotPlugin):
             # It's for me
             self.log.info("It's for me")
             #self['sc'].deletePost(msg[self.idPost], chan)
-            self.sc.deletePost(msg[self.idPost], chan)
+            oldChan = self.sc.getChannel()
+            self.sc.setChannel(chan)
+            self.sc.deletePostId(msg[self.idPost])
+            self.sc.channel = oldChan
             
             replies = urllib.parse.unquote(msgE['args'])
             if not (msgE['frm'] == '-'):
@@ -269,7 +287,7 @@ class ErrForward(BotPlugin):
         chan = self['chan']
         #site = self['sc']
         site = self.sc
-        site.setPosts(self['chan'])
+        site.setPosts()
         #self.log.debug("Messages %s" % str(site.getPosts()))
 
         for msg in site.getPosts(): 
