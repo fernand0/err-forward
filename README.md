@@ -13,3 +13,5 @@ The channel used for communication is a bot config, for example:
     {'channel': 'general'}
 
 All the bots must write and read on the same channel.
+
+**TODO:** Double forward does not work: `,fw !fw *status `
