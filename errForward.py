@@ -42,7 +42,7 @@ class ErrForward(BotPlugin):
         self.idPost = 'ts'
 		
         import importlib
-        mod = importlib.import_module(myModule) 
+        mod = importlib.import_module(f"socialModules.{myModule}") 
         cls = getattr(mod, myModule)
         site = cls()
         site.setUrl(myModule)
