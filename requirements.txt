@@ -1,0 +1,2 @@
+social-modules@git+https://git@github.com/fernand0/socialModules
+
