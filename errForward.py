@@ -12,6 +12,7 @@ from errbot import BotPlugin, botcmd, webhook
 from errbot.backends.base import Message, Identifier
 from errbot.templating import tenv
 
+import socialModules
 from socialModules.configMod import *
 # You need to:
 # pip install social-modules@git+https://git@github.com/fernand0/socialModules@dist
@@ -39,21 +40,21 @@ class ErrForward(BotPlugin):
         #myModule = 'moduleGitter' 
         #self.idPost = 'id'
         myModule = 'moduleSlack'
+        mySocModule = f"socialModules.{myModule}"
         self.idPost = 'ts'
 		
         import importlib
-        mod = importlib.import_module(f"socialModules.{myModule}") 
+        mod = importlib.import_module(mySocModule) 
         cls = getattr(mod, myModule)
         site = cls()
         site.setUrl(myModule)
 
         site.setClient(myModule)
-        self.log.info("Client client")
 
         self.sc = site
         #self['sc'] = site
         # It fails with can't pickle _thread.RLock objects..
-        self.log.info("Chan config: {}".format(self._check_config('channel')))
+        self.log.debug(f"Chan config: {format(self._check_config('channel'))}")
         if not self.config:
             self.log.info("ErrForward is not configured. Forbid activation")
             return
@@ -70,7 +71,7 @@ class ErrForward(BotPlugin):
                             self['userHost'], self._bot.bot_config.BACKEND, ))
 
         chan = self['chan']
-        self.log.info("Chan: {}".format(chan))
+        self.log.debug(" Chan: {}".format(chan))
         #self['sc'].publishPost(chan, msgJ)
         self.sc.publishPost(msgJ, '', chan)
         
@@ -116,19 +117,20 @@ class ErrForward(BotPlugin):
 
     def prepareMessage(self, usr="", host="", frm="", 
             mess = "", typ ="", cmd = "", args =""):
+        self.log.info("Start prepareMessage")
 
-        if not frm: 
-            if mess: 
-                frm = mess.frm 
+        if not frm and mess: 
+            frm = mess.frm 
 
         if args and typ != 'Msg':
-            self.log.info("Args _%s_"%args)
+            self.log.debug(f"prepareMessage args: {args}")
             args = urllib.parse.quote(args)
 
         msg = {'userName': usr, 'userHost': host, 
                 'frm': str(frm), 'typ': typ, 'cmd': cmd, 'args': args }
         msgJ = json.dumps(msg)
 
+        self.log.info("End prepareMessage")
         return(msgJ)
 
     def extractArgs(self, msg):
@@ -167,7 +169,7 @@ class ErrForward(BotPlugin):
             self.log.info("Bot %s" % str(bot))
             start = bot[bot.find('[')+1]
             newCmd = start + cmd
-            self.log.info("Inserting %s command" % newCmd)
+            self.log.info(f" broadcastCommand. Inserting {newCmd} command")
             msgJ = self.prepareMessage(mess=msg['mess'], usr=self['userName'], 
                 host= self['userHost'], typ = 'Cmd' , cmd = newCmd, 
                 args = msg['args']) 
@@ -178,17 +180,15 @@ class ErrForward(BotPlugin):
         self.log.info("End Broadcast")
 
     def manageCommand(self, chan, msgE, msg):
-        self.log.info("Starting manage command")
-        self.log.info("Command %s" % msgE['cmd'])
+        self.log.info(f"Start manage command ({msgE['cmd']})")
         cmd = msgE['cmd']
         lenPrefix = len(self._bot.bot_config.BOT_PREFIX)
         prefix = cmd[:lenPrefix]
         cmd = cmd[lenPrefix:]
-        self.log.debug("Bot prefix %s" % self._bot.bot_config.BOT_PREFIX)
+        self.log.debug(f" Bot prefix {self._bot.bot_config.BOT_PREFIX}")
         if prefix == self._bot.bot_config.BOT_PREFIX:
-            self.log.info("It's for me")
-            self.log.info("It's for me {} {}".format(str(msg),chan))
-            #result = self['sc'].deletePost(msg[self.idPost], chan)
+            self.log.info(f" {cmd} it's for me")
+            self.log.debug(f" It's for me: {str(msg)}")
             oldChan = self.sc.getChannel()
             self.sc.setChannel(chan)
             result = self.sc.deletePostId(msg[self.idPost])
@@ -200,7 +200,7 @@ class ErrForward(BotPlugin):
             if cmd in listCommands:
                 method = listCommands[cmd]                   
                 txtR = ''
-                self.log.info("Args Forwarded Message %s" %msgE['args'])
+                self.log.debug(f"Args Forwarded Message {msgE['args']}")
                 if msgE['args']:
                     newArgs = urllib.parse.unquote(msgE['args'])
                     newMsg = ""
@@ -209,18 +209,20 @@ class ErrForward(BotPlugin):
                     # one of the bot admins
                     newMsg = Message(frm = self._bot.build_identifier(
                         self.bot_config.BOT_ADMINS[0]))
-                    self.log.info("newFrm %s" % newMsg.frm)
+                    self.log.debug(f" No from, newFrm {newMsg.frm}")
                     newArgs = ""
 
                 replies = method(newMsg, newArgs) 
-                if not inspect.isgeneratorfunction(method) and not isinstance(replies, tuple) and not isinstance(replies, list): 
+                if (not inspect.isgeneratorfunction(method) 
+                    and not isinstance(replies, tuple) 
+                    and not isinstance(replies, list)): 
+                    #FIXME ?
                     replies = [ replies ]
 
                 for reply in replies: 
                     if isinstance(reply, str):
                         txtR = txtR + '\n' + reply 
                     else:
-                        self.log.info("Reply not string %s" % str(reply))
                         # What happens if there is no template?
                         # https://github.com/errbotio/errbot/blob/master/errbot/core.py
                         if not method._err_command_template: 
@@ -234,21 +236,23 @@ class ErrForward(BotPlugin):
                                     + '.md').render(reply)
 
                 replyMsg = self.prepareMessage(typ = 'Rep', 
-                        usr= msgE['userName'], host=msgE['userHost'], 
-                        frm = msgE['frm'], args = txtR)
+                                               usr= msgE['userName'], 
+                                               host=msgE['userHost'], 
+                                               frm = msgE['frm'], 
+                                               args = txtR)
                 # Split long Rep.
                 # Adding a new type of Rep?
         
                 chanP = self['chan']
                 #self['sc'].publishPost(chanP, replyMsg)
                 self.sc.setChannel(chan)
+                self.log.info(" Begin forward (reply)")
                 self.sc.publishPost(replyMsg, '', chanP)
-                self.log.info("End forward")
+                self.log.info(" End forward (reply)")
             else:
                 self.log.info("Command not available %s in %s"%(cmd, msgE))
         else: 
-            self.log.info("Not for me")
-            self.log.debug("Not for me %s in %s"%(cmd, msgE))
+            self.log.info(f" {cmd} is not for me")
         self.log.info("End manage command")
 
     def manageReply(self, chan, msgE, msg):
@@ -280,8 +284,7 @@ class ErrForward(BotPlugin):
 
     def managePosts(self):
         # Don't put yield in this function!
-        self.log.info('Start managing posts')
-        self.log.info(' Slack channel %s' % self['chan'])
+        self.log.info(f"Start managing posts in channel {self['chan']}")
 
         chan = self['chan']
         #site = self['sc']
@@ -303,8 +306,8 @@ class ErrForward(BotPlugin):
         self.log.info('End managing posts')
 
     def forwardCommand(self, mess, args):
-        self.log.info("Begin forward %s from %s" % (mess, mess.frm))
-        self.log.info("Args: *%s*"% args)
+        self.log.info(f"Begin forward {mess} from {mess.frm}")
+        self.log.debug(f" Args forwardCommand: {args}")
         if args.find(' ') >= 0:
             argsS = args.split()
             cmd = argsS[0]
@@ -313,18 +316,22 @@ class ErrForward(BotPlugin):
             cmd = args
             newArgs = ""
             
-        self.log.info("Command: *%s*"% cmd)
-        self.log.info("Args before: *%s*"% newArgs)
+        self.log.debug(f" forwardCommand Command: {cmd}")
+        self.log.debug(f" forwardCommand Args before: {newArgs}")
         if cmd.startswith('*'):
             newCmd = cmd[1:]
-            self.log.info("New command %s" % newCmd)
+            self.log.debug(" forwardCommand new command %s" % newCmd)
             msg = {'mess':mess, 'usr':self['userName'], 
                     'host':self['userHost'], 'typ' : 'Cmd' , 
                     'cmd' : newCmd, 'args': newArgs} 
             self.broadcastCommand(msg, newCmd) 
         else: 
-            msgE = self.prepareMessage(mess=mess, usr=self['userName'], 
-                host= self['userHost'], typ = 'Cmd' , cmd = cmd, args = newArgs) 
+            msgE = self.prepareMessage(mess=mess, 
+                                       usr=self['userName'],
+                                       host= self['userHost'],
+                                       typ = 'Cmd',
+                                       cmd = cmd,
+                                       args = newArgs) 
             chan = self['chan'] 
             #self['sc'].publishPost(chan, msgE) 
             self.sc.publishPost(msgE, '', chan) 
