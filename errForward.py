@@ -12,7 +12,6 @@ from errbot import BotPlugin, botcmd, webhook
 from errbot.backends.base import Message, Identifier
 from errbot.templating import tenv
 
-import socialModules
 from socialModules.configMod import *
 # You need to:
 # pip install social-modules@git+https://git@github.com/fernand0/socialModules@dist
