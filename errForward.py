@@ -49,8 +49,9 @@ class ErrForward(BotPlugin):
         my_module = self.config.get('module', 'moduleSlack')
         my_soc_module = f"socialModules.{my_module}"
         
-        # Set id_post based on mapping, default to 'id'
-        self.id_post = MODULE_ID_MAP.get(my_module, 'id')
+        # Use override if provided, otherwise use mapping, default to 'id'
+        self.id_post = self.config.get('id_post_override') or MODULE_ID_MAP.get(my_module, 'id')
+        self.bot_id = self.config.get('bot_id', 'bot1')
 		
         try:
             mod = importlib.import_module(my_soc_module) 
@@ -66,12 +67,10 @@ class ErrForward(BotPlugin):
         chan = str(self.config.get('channel', 'general'))
         self['chan'] = chan
         self.sc.setChannel(chan)
-        self.user_name = pwd.getpwuid(os.getuid())[0]
-        self.user_host = os.uname()[1]
 
         msg_j = self.prepare_message(
             typ='Msg', 
-            args=f"Hello! IP: {self.get_my_ip()}. Commands [{self._bot.bot_config.BOT_PREFIX}]. Name: {self.user_host}. Backend: {self._bot.bot_config.BACKEND}"
+            args=f"Hello! IP: {self.get_my_ip()}. Commands [{self._bot.bot_config.BOT_PREFIX}]. Bot ID: {self.bot_id}. Backend: {self._bot.bot_config.BACKEND}"
         )
 
         self.log.debug(f" Chan: {chan}")
@@ -86,14 +85,10 @@ class ErrForward(BotPlugin):
     def get_configuration_template(self):
         return {
             'channel': "general",
-            'module': "moduleSlack"
+            'module': "moduleSlack",
+            'bot_id': "bot1",
+            'id_post_override': ""
         }
-
-    def callback_message(self, mess):
-        # This was likely for debugging, refined to prevent unnecessary yielding
-        if ((mess.body.find(self.user_name) == -1) 
-                or (mess.body.find(self.user_host) == -1)):
-            pass
 
     def get_my_ip(self):
         import socket
@@ -150,8 +145,8 @@ class ErrForward(BotPlugin):
             args = urllib.parse.quote(args)
 
         msg = {
-            'userName': usr or getattr(self, 'user_name', ''), 
-            'userHost': host or getattr(self, 'user_host', ''), 
+            'userName': usr or getattr(self, 'bot_id', 'bot1'), 
+            'userHost': host or 'err-forward', 
             'frm': str(frm), 
             'typ': typ, 
             'cmd': cmd, 
@@ -277,9 +272,9 @@ class ErrForward(BotPlugin):
             if msg_e['userHost'].endswith('>'): 
                 msg_e['userHost'] = msg_e['userHost'][:-1]
 
-        if ((msg_e['userName'] == self.user_name) 
-                and (msg_e['userHost'] == self.user_host)):
-            self.log.info("It's for me")
+        # Improved Identification using bot_id
+        if msg_e['userName'] == self.bot_id:
+            self.log.info(f"It's for me ({self.bot_id})")
             try:
                 old_chan = self.sc.getChannel()
                 self.sc.setChannel(chan)
