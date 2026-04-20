@@ -1,24 +1,31 @@
-import configparser
-import os, pwd
-import datetime
+import os
+import pwd
 import inspect
-import re
 import json
 import urllib.parse
-import sys
+import importlib
 
 
-from errbot import BotPlugin, botcmd, webhook
-from errbot.backends.base import Message, Identifier
+from errbot import BotPlugin, botcmd
+from errbot.backends.base import Message
 from errbot.templating import tenv
 
 from socialModules.configMod import *
 # You need to:
 # pip install social-modules@git+https://git@github.com/fernand0/socialModules@dist
 
+# Mapping of social modules to their respective message ID fields
+MODULE_ID_MAP = {
+    'moduleSlack': 'ts',
+    'moduleGitter': 'id',
+    'moduleMastodon': 'id',
+    'moduleTwitter': 'id_str',
+}
+
 
 def end(msg=""):
-    return("END"+msg)
+    return f"END{msg}"
+
 
 class ErrForward(BotPlugin):
     """
@@ -28,339 +35,308 @@ class ErrForward(BotPlugin):
     def activate(self):
         """
         Triggers on plugin activation
-
-        You should delete it if you're not using it to override any default
-        behaviour """
-        
+        """
         self.log.info("Super activation")
         super().activate()
-        self.log.info("Let's go")
 
-        #myModule = 'moduleGitter' 
-        #self.idPost = 'id'
-        myModule = 'moduleSlack'
-        mySocModule = f"socialModules.{myModule}"
-        self.idPost = 'ts'
-		
-        import importlib
-        mod = importlib.import_module(mySocModule) 
-        cls = getattr(mod, myModule)
-        site = cls()
-        site.setUrl(myModule)
-
-        site.setClient(myModule)
-
-        self.sc = site
-        #self['sc'] = site
-        # It fails with can't pickle _thread.RLock objects..
-        self.log.debug(f"Chan config: {format(self._check_config('channel'))}")
         if not self.config:
             self.log.info("ErrForward is not configured. Forbid activation")
             return
-        self['chan'] = str(self._check_config('channel'))
-        site.setChannel(self['chan'])
-        self['userName'] = pwd.getpwuid(os.getuid())[0]
-        self['userHost'] = os.uname()[1]
 
-        msgJ = self.prepareMessage(
-                typ = 'Msg', 
-                args = 'Hello! IP: {}. Commands [{}]. Name: {}. Backend: {}'\
-                        .format(self.getMyIP(), 
-                            self._bot.bot_config.BOT_PREFIX, 
-                            self['userHost'], self._bot.bot_config.BACKEND, ))
-
-        chan = self['chan']
-        self.log.debug(" Chan: {}".format(chan))
-        #self['sc'].publishPost(chan, msgJ)
-        self.sc.publishPost(msgJ, '', chan)
+        my_module = self.config.get('module', 'moduleSlack')
+        my_soc_module = f"socialModules.{my_module}"
         
-        self.start_poller(60, self.managePosts)
+        # Set id_post based on mapping, default to 'id'
+        self.id_post = MODULE_ID_MAP.get(my_module, 'id')
+		
+        try:
+            mod = importlib.import_module(my_soc_module) 
+            cls = getattr(mod, my_module)
+            site = cls()
+            site.setUrl(my_module)
+            site.setClient(my_module)
+            self.sc = site
+        except (ImportError, AttributeError, Exception) as e:
+            self.log.error(f"Failed to load module {my_module}: {e}")
+            return
+
+        chan = str(self.config.get('channel', 'general'))
+        self['chan'] = chan
+        self.sc.setChannel(chan)
+        self.user_name = pwd.getpwuid(os.getuid())[0]
+        self.user_host = os.uname()[1]
+
+        msg_j = self.prepare_message(
+            typ='Msg', 
+            args=f"Hello! IP: {self.get_my_ip()}. Commands [{self._bot.bot_config.BOT_PREFIX}]. Name: {self.user_host}. Backend: {self._bot.bot_config.BACKEND}"
+        )
+
+        self.log.debug(f" Chan: {chan}")
+        try:
+            self.sc.publishPost(msg_j, '', chan)
+        except Exception as e:
+            self.log.error(f"Failed to publish activation message: {e}")
+        
+        self.start_poller(60, self.manage_posts)
         self.log.info('ErrForward has been activated')
 
     def get_configuration_template(self):
-        """
-        """
-        return {'channel': "general"}
-
-    def _check_config(self, option):
-
-        # if no config, return nothing
-        if self.config is None:
-            return None
-        else:
-            # now, let's validate the key
-            if option in self.config:
-                return self.config[option]
-            else:
-                return None
+        return {
+            'channel': "general",
+            'module': "moduleSlack"
+        }
 
     def callback_message(self, mess):
-        userName = self['userName']
-        userHost = self['userHost']
-        if ((mess.body.find(userName) == -1) 
-                or (mess.body.find(hostName) == -1)):
-            yield("Trying!")
+        # This was likely for debugging, refined to prevent unnecessary yielding
+        if ((mess.body.find(self.user_name) == -1) 
+                or (mess.body.find(self.user_host) == -1)):
+            pass
 
-    def getMyIP(self):
+    def get_my_ip(self):
         import socket
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(('google.com', 0))
-        return(s.getsockname()[0])
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(('8.8.8.8', 80))
+            ip = s.getsockname()[0]
+            s.close()
+            return ip
+        except Exception:
+            return "127.0.0.1"
  
     @botcmd
-    def myIP(self, mess, args):
+    def myip(self, mess, args):
         """ IP of the bot
         """
-        yield(self.getMyIP())
-        yield(end())
+        yield self.get_my_ip()
+        yield end()
 
-    def prepareMessage(self, usr="", host="", frm="", 
-            mess = "", typ ="", cmd = "", args =""):
-        self.log.info("Start prepareMessage")
+    def prepare_message(self, usr="", host="", frm="", 
+                        mess=None, typ="", cmd="", args=""):
+        self.log.info("Start prepare_message")
 
         if not frm and mess: 
             frm = mess.frm 
 
         if args and typ != 'Msg':
-            self.log.debug(f"prepareMessage args: {args}")
+            self.log.debug(f"prepare_message args: {args}")
             args = urllib.parse.quote(args)
 
-        msg = {'userName': usr, 'userHost': host, 
-                'frm': str(frm), 'typ': typ, 'cmd': cmd, 'args': args }
-        msgJ = json.dumps(msg)
+        msg = {
+            'userName': usr or getattr(self, 'user_name', ''), 
+            'userHost': host or getattr(self, 'user_host', ''), 
+            'frm': str(frm), 
+            'typ': typ, 
+            'cmd': cmd, 
+            'args': args
+        }
+        msg_j = json.dumps(msg)
 
-        self.log.info("End prepareMessage")
-        return(msgJ)
+        self.log.info("End prepare_message")
+        return msg_j
 
-    def extractArgs(self, msg):
-        self.log.debug("   Converting args")
-        self.log.debug("Msg: %s" % msg)
+    def extract_args(self, msg):
+        self.log.debug(f"Msg: {msg}")
 
         if 'text' in msg: 
             try: 
-                msgE = json.loads(msg['text']) 
-            except: 
-                self.log.debug("    Error Converting json: %s" % str(msg)) 
-                msgE = msg['text']
+                msg_e = json.loads(msg['text']) 
+            except Exception: 
+                self.log.debug(f"    Error Converting json: {msg}") 
+                msg_e = msg['text']
         else: 
             self.log.info("No text!")
-            msgE = None
+            msg_e = None
             
-        if msgE and ('args' in msgE) \
-              and ('type' in msgE) and (msgE['typ'] != 'Msg'):
-            self.log.info("   Converting args")
+        if msg_e and isinstance(msg_e, dict) and ('args' in msg_e) \
+                and ('typ' in msg_e) and (msg_e['typ'] != 'Msg'):
             # Unquoting the args
-            self.log.debug("Reply args before: %s " % msgE['args'])
-            tmpJ = urllib.parse.unquote(msgE['args'])
-            msgE['args'] = tmpJ
-            self.log.debug("Reply args after: %s " % msgE['args'])
-            self.log.debug("Reply args after: %s " % msgE['frm'])
-            self.log.info("   End Converting")
+            tmp_j = urllib.parse.unquote(msg_e['args'])
+            msg_e['args'] = tmp_j
 
-        return(msgE)
+        return msg_e
 
-    def broadcastCommand(self, msg, cmd): 
+    def broadcast_command(self, msg, cmd): 
         self.log.info("Starting Broadcast")
-        #for bot in self['sc'].getBots(self['chan']):
-        listBots = self.sc.getBots(self['chan'])
-        self.log.debug(f"Bots: {listBots}")
-        for bot in listBots:
-            self.log.info("Bot %s" % str(bot))
-            start = bot[bot.find('[')+1]
-            newCmd = start + cmd
-            self.log.info(f" broadcastCommand. Inserting {newCmd} command")
-            msgJ = self.prepareMessage(mess=msg['mess'], usr=self['userName'], 
-                host= self['userHost'], typ = 'Cmd' , cmd = newCmd, 
-                args = msg['args']) 
-            self.log.debug("The new command %s" % msgJ)
+        try:
+            list_bots = self.sc.getBots(self['chan'])
+        except Exception as e:
+            self.log.error(f"Failed to get bots for broadcast: {e}")
+            return
 
-            #self['sc'].publishPost(self['chan'], msgJ)
-            self.sc.publishPost(msgJ, '', self['chan'])
+        for bot in list_bots:
+            try:
+                start = bot[bot.find('[')+1]
+                new_cmd = start + cmd
+                msg_j = self.prepare_message(
+                    mess=msg['mess'], typ='Cmd', cmd=new_cmd, 
+                    args=msg['args']
+                ) 
+                self.sc.publishPost(msg_j, '', self['chan'])
+            except Exception as e:
+                self.log.error(f"Failed to broadcast to bot {bot}: {e}")
+
         self.log.info("End Broadcast")
 
-    def manageCommand(self, chan, msgE, msg):
-        self.log.info(f"Start manage command ({msgE['cmd']})")
-        cmd = msgE['cmd']
-        lenPrefix = len(self._bot.bot_config.BOT_PREFIX)
-        prefix = cmd[:lenPrefix]
-        cmd = cmd[lenPrefix:]
-        self.log.debug(f" Bot prefix {self._bot.bot_config.BOT_PREFIX}")
+    def manage_command(self, chan, msg_e, msg):
+        self.log.info(f"Start manage command ({msg_e['cmd']})")
+        cmd = msg_e['cmd']
+        len_prefix = len(self._bot.bot_config.BOT_PREFIX)
+        prefix = cmd[:len_prefix]
+        cmd = cmd[len_prefix:]
+
         if prefix == self._bot.bot_config.BOT_PREFIX:
             self.log.info(f" {cmd} it's for me")
-            self.log.debug(f" It's for me: {str(msg)}")
-            oldChan = self.sc.getChannel()
-            self.sc.setChannel(chan)
-            result = self.sc.deletePostId(msg[self.idPost])
-            self.sc.channel = oldChan
-            # Consider avoiding it (?)
-            # Maybe we could also have separated the command from args
-
-            listCommands = self._bot.all_commands
-            if cmd in listCommands:
-                method = listCommands[cmd]                   
-                txtR = ''
-                self.log.debug(f"Args Forwarded Message {msgE['args']}")
-                if msgE['args']:
-                    newArgs = urllib.parse.unquote(msgE['args'])
-                    newMsg = ""
-                else:
-                    # There is no from, we need to set some. We will use
-                    # one of the bot admins
-                    newMsg = Message(frm = self._bot.build_identifier(
-                        self.bot_config.BOT_ADMINS[0]))
-                    self.log.debug(f" No from, newFrm {newMsg.frm}")
-                    newArgs = ""
-
-                replies = method(newMsg, newArgs) 
-                if (not inspect.isgeneratorfunction(method) 
-                    and not isinstance(replies, tuple) 
-                    and not isinstance(replies, list)): 
-                    #FIXME ?
-                    replies = [ replies ]
-
-                for reply in replies: 
-                    if isinstance(reply, str):
-                        txtR = txtR + '\n' + reply 
-                    else:
-                        # What happens if there is no template?
-                        # https://github.com/errbotio/errbot/blob/master/errbot/core.py
-                        if not method._err_command_template: 
-                            txtR = f"{txtR} {reply}"
-                        else:
-                            self.log.debug("tenv -> %s%s" 
-                                    % (method._err_command_template,
-                                        '.md'))
-                            txtR = txtR + tenv().get_template(
-                                    method._err_command_template 
-                                    + '.md').render(reply)
-
-                replyMsg = self.prepareMessage(typ = 'Rep', 
-                                               usr= msgE['userName'], 
-                                               host=msgE['userHost'], 
-                                               frm = msgE['frm'], 
-                                               args = txtR)
-                # Split long Rep.
-                # Adding a new type of Rep?
-        
-                chanP = self['chan']
-                #self['sc'].publishPost(chanP, replyMsg)
+            try:
+                old_chan = self.sc.getChannel()
                 self.sc.setChannel(chan)
-                self.log.info(" Begin forward (reply)")
-                self.sc.publishPost(replyMsg, '', chanP)
-                self.log.info(" End forward (reply)")
+                self.sc.deletePostId(msg[self.id_post])
+                self.sc.channel = old_chan
+            except Exception as e:
+                self.log.error(f"Failed to delete command post: {e}")
+
+            list_commands = self._bot.all_commands
+            if cmd in list_commands:
+                method = list_commands[cmd]                   
+                txt_r = ''
+                if msg_e['args']:
+                    new_args = urllib.parse.unquote(msg_e['args'])
+                    new_msg = ""
+                else:
+                    new_msg = Message(frm=self._bot.build_identifier(
+                        self.bot_config.BOT_ADMINS[0]))
+                    new_args = ""
+
+                try:
+                    replies = method(new_msg, new_args) 
+                    if (not inspect.isgeneratorfunction(method) 
+                            and not isinstance(replies, (tuple, list))): 
+                        replies = [replies]
+
+                    for reply in replies: 
+                        if isinstance(reply, str):
+                            txt_r = f"{txt_r}\n{reply}"
+                        else:
+                            if not method._err_command_template: 
+                                txt_r = f"{txt_r} {reply}"
+                            else:
+                                txt_r = txt_r + tenv().get_template(
+                                    f"{method._err_command_template}.md"
+                                ).render(reply)
+
+                    reply_msg = self.prepare_message(
+                        typ='Rep', 
+                        usr=msg_e['userName'], 
+                        host=msg_e['userHost'], 
+                        frm=msg_e['frm'], 
+                        args=txt_r
+                    )
+            
+                    chan_p = self['chan']
+                    self.sc.setChannel(chan)
+                    self.sc.publishPost(reply_msg, '', chan_p)
+                except Exception as e:
+                    self.log.error(f"Error executing or replying to command {cmd}: {e}")
             else:
-                self.log.info("Command not available %s in %s"%(cmd, msgE))
-        else: 
-            self.log.info(f" {cmd} is not for me")
+                self.log.info(f"Command not available {cmd}")
         self.log.info("End manage command")
 
-    def manageReply(self, chan, msgE, msg):
-        self.log.info("Starting manage reply command")
-        self.log.debug("msgE %s" % msgE)
-        self.log.info("Command %s" % msgE['cmd'])
-        if '|' in msgE['userHost']:
-            # FIXME Maybe we should check the sdk and the API?
-            msgE['userHost'] = msgE['userHost'].split('|')[1]
-            if msgE['userHost'].endswith('>'): 
-                msgE['userHost'] = msgE['userHost'][:-1]
+    def manage_reply(self, chan, msg_e, msg):
+        if '|' in msg_e['userHost']:
+            msg_e['userHost'] = msg_e['userHost'].split('|')[1]
+            if msg_e['userHost'].endswith('>'): 
+                msg_e['userHost'] = msg_e['userHost'][:-1]
 
-        self.log.debug("User: %s - %s | %s - %s" %
-                (msgE['userName'], self['userName'], 
-                    msgE['userHost'], self['userHost']))
-        if ((msgE['userName'] == self['userName']) 
-                and (msgE['userHost'] == self['userHost'])):
-            # It's for me
+        if ((msg_e['userName'] == self.user_name) 
+                and (msg_e['userHost'] == self.user_host)):
             self.log.info("It's for me")
-            #self['sc'].deletePost(msg[self.idPost], chan)
-            oldChan = self.sc.getChannel()
-            self.sc.setChannel(chan)
-            self.sc.deletePostId(msg[self.idPost])
-            self.sc.channel = oldChan
+            try:
+                old_chan = self.sc.getChannel()
+                self.sc.setChannel(chan)
+                self.sc.deletePostId(msg[self.id_post])
+                self.sc.channel = old_chan
+            except Exception as e:
+                self.log.error(f"Failed to delete reply post: {e}")
             
-            replies = urllib.parse.unquote(msgE['args'])
-            if not (msgE['frm'] == '-'):
-                msgTo = self._bot.build_identifier(msgE['frm'])
+            replies = urllib.parse.unquote(msg_e['args'])
+            if not (msg_e['frm'] == '-'):
+                msg_to = self._bot.build_identifier(msg_e['frm'])
             else:
-                msgTo = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
-            # Escaping some markdown. Maybe we will need more
-            replies = replies.replace('_','\_')
+                msg_to = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
+            replies = replies.replace('_', r'\_')
             
-            self.send(msgTo, replies)
-        self.log.info("End manage reply")
+            self.send(msg_to, replies)
 
-    def managePosts(self):
-        # Don't put yield in this function!
-        self.log.info(f"Start managing posts in channel {self['chan']}")
+    def manage_posts(self):
+        if not hasattr(self, 'sc') or not self.sc:
+            return
 
         chan = self['chan']
-        #site = self['sc']
-        site = self.sc
-        site.setPosts()
-        #self.log.debug("Messages %s" % str(site.getPosts()))
+        try:
+            self.sc.setPosts()
+            posts = self.sc.getPosts()
+        except Exception as e:
+            self.log.error(f"Failed to fetch posts: {e}")
+            return
 
-        for msg in site.getPosts(): 
-            self.log.debug("msg %s" % str(msg))
-            msgE = self.extractArgs(msg) 
-            self.log.debug("msgE %s" % str(msgE))
-            if msgE and ('typ' in msgE): 
-                if msgE['typ'] == 'Cmd': 
-                    # It's a command 
-                    self.manageCommand(chan, msgE, msg) 
-                elif msgE['typ'] == 'Rep':                    
-                    # It's a reply 
-                    self.manageReply(chan, msgE, msg)
-        self.log.info('End managing posts')
+        for msg in posts: 
+            msg_e = self.extract_args(msg) 
+            if msg_e and isinstance(msg_e, dict) and ('typ' in msg_e): 
+                if msg_e['typ'] == 'Cmd': 
+                    self.manage_command(chan, msg_e, msg) 
+                elif msg_e['typ'] == 'Rep':                    
+                    self.manage_reply(chan, msg_e, msg)
 
-    def forwardCommand(self, mess, args):
+    def forward_command(self, mess, args):
         self.log.info(f"Begin forward {mess} from {mess.frm}")
-        self.log.debug(f" Args forwardCommand: {args}")
-        if args.find(' ') >= 0:
-            argsS = args.split()
-            cmd = argsS[0]
-            newArgs = ' '.join(argsS[1:])
+        if ' ' in args:
+            args_s = args.split()
+            cmd = args_s[0]
+            new_args = ' '.join(args_s[1:])
         else:
             cmd = args
-            newArgs = ""
+            new_args = ""
             
-        self.log.debug(f" forwardCommand Command: {cmd}")
-        self.log.debug(f" forwardCommand Args before: {newArgs}")
         if cmd.startswith('*'):
-            newCmd = cmd[1:]
-            self.log.debug(" forwardCommand new command %s" % newCmd)
-            msg = {'mess':mess, 'usr':self['userName'], 
-                    'host':self['userHost'], 'typ' : 'Cmd' , 
-                    'cmd' : newCmd, 'args': newArgs} 
-            self.broadcastCommand(msg, newCmd) 
+            new_cmd = cmd[1:]
+            msg = {
+                'mess': mess, 
+                'typ': 'Cmd', 
+                'cmd': new_cmd, 
+                'args': new_args
+            } 
+            self.broadcast_command(msg, new_cmd) 
         else: 
-            msgE = self.prepareMessage(mess=mess, 
-                                       usr=self['userName'],
-                                       host= self['userHost'],
-                                       typ = 'Cmd',
-                                       cmd = cmd,
-                                       args = newArgs) 
-            chan = self['chan'] 
-            #self['sc'].publishPost(chan, msgE) 
-            self.sc.publishPost(msgE, '', chan) 
-        self.log.info("End forward %s"%mess)
+            msg_e = self.prepare_message(
+                mess=mess, 
+                typ='Cmd',
+                cmd=cmd,
+                args=new_args
+            ) 
+            try:
+                self.sc.publishPost(msg_e, '', self['chan']) 
+            except Exception as e:
+                self.log.error(f"Failed to forward command: {e}")
+        self.log.info(f"End forward {mess}")
 
     @botcmd
     def forward(self, mess, args):
         """ Command forwarding to another bot
         """
-        yield self.forwardCommand(mess, args)
+        yield self.forward_command(mess, args)
 
     @botcmd
     def fw(self, mess, args):
         """ Command forwarding to another bot (abrv)
         """
-        yield self.forwardCommand(mess, args)
+        yield self.forward_command(mess, args)
 
-    @botcmd(template='monospace')
-    def listB(self, mess, args):
+    @botcmd(name='listB', template='monospace')
+    def list_bots_cmd(self, mess, args):
         """ List bots connected to the Slack channel
         """
-        #bots = self['sc'].getBots(self['chan'])
-        bots = self.sc.getBots(self['chan'])
-        yield({'text': bots})
-        yield(end())
-
+        try:
+            bots = self.sc.getBots(self['chan'])
+            yield {'text': bots}
+            yield end()
+        except Exception as e:
+            yield f"Error listing bots: {e}"
