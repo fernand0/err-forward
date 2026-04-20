@@ -174,11 +174,16 @@ class ErrForward(BotPlugin):
             self.log.info("No text!")
             msg_e = None
             
-        if msg_e and isinstance(msg_e, dict) and ('args' in msg_e) \
-                and ('typ' in msg_e) and (msg_e['typ'] != 'Msg'):
-            # Unquoting the args
-            tmp_j = urllib.parse.unquote(msg_e['args'])
-            msg_e['args'] = tmp_j
+        # Support both 'typ' and 'type' for maximum compatibility
+        if isinstance(msg_e, dict) and ('args' in msg_e):
+            msg_type = msg_e.get('typ') or msg_e.get('type')
+            if msg_type and msg_type != 'Msg':
+                # Unquoting the args
+                tmp_j = urllib.parse.unquote(msg_e['args'])
+                msg_e['args'] = tmp_j
+                # Ensure 'typ' exists even if the sender used 'type'
+                if 'typ' not in msg_e:
+                    msg_e['typ'] = msg_type
 
         return msg_e
 
@@ -258,9 +263,9 @@ class ErrForward(BotPlugin):
                     for chunk in txt_chunks:
                         reply_msg = self.prepare_message(
                             typ='Rep', 
-                            usr=msg_e['userName'], 
-                            host=msg_e['userHost'], 
-                            frm=msg_e['frm'], 
+                            usr=msg_e.get('userName', ''), 
+                            host=msg_e.get('userHost', ''), 
+                            frm=msg_e.get('frm', ''), 
                             args=chunk
                         )
                         self.sc.publishPost(reply_msg, '', chan_p)
@@ -271,14 +276,14 @@ class ErrForward(BotPlugin):
         self.log.info("End manage command")
 
     def manage_reply(self, chan, msg_e, msg):
-        if '|' in msg_e['userHost']:
+        if '|' in msg_e.get('userHost', ''):
             msg_e['userHost'] = msg_e['userHost'].split('|')[1]
             if msg_e['userHost'].endswith('>'): 
                 msg_e['userHost'] = msg_e['userHost'][:-1]
 
         # Compatible Identification
-        if ((msg_e['userName'] == self.user_name) 
-                and (msg_e['userHost'] == self.user_host)):
+        if ((msg_e.get('userName') == self.user_name) 
+                and (msg_e.get('userHost') == self.user_host)):
             self.log.info(f"It's for me ({self.user_name}@{self.user_host})")
             try:
                 old_chan = self.sc.getChannel()
@@ -289,7 +294,7 @@ class ErrForward(BotPlugin):
                 self.log.error(f"Failed to delete reply post: {e}")
             
             replies = urllib.parse.unquote(msg_e['args'])
-            if not (msg_e['frm'] == '-'):
+            if not (msg_e.get('frm') == '-'):
                 msg_to = self._bot.build_identifier(msg_e['frm'])
             else:
                 msg_to = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
@@ -311,10 +316,12 @@ class ErrForward(BotPlugin):
 
         for msg in posts: 
             msg_e = self.extract_args(msg) 
-            if msg_e and isinstance(msg_e, dict) and ('typ' in msg_e): 
-                if msg_e['typ'] == 'Cmd': 
+            # Safe check for dictionary and type key
+            if isinstance(msg_e, dict):
+                msg_type = msg_e.get('typ') or msg_e.get('type')
+                if msg_type == 'Cmd': 
                     self.manage_command(chan, msg_e, msg) 
-                elif msg_e['typ'] == 'Rep':                    
+                elif msg_type == 'Rep':                    
                     self.manage_reply(chan, msg_e, msg)
 
     def forward_command(self, mess, args):
