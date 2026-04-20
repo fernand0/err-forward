@@ -51,7 +51,10 @@ class ErrForward(BotPlugin):
         
         # Use override if provided, otherwise use mapping, default to 'id'
         self.id_post = self.config.get('id_post_override') or MODULE_ID_MAP.get(my_module, 'id')
-        self.bot_id = self.config.get('bot_id', 'bot1')
+        
+        # Restore compatible identification with system defaults
+        self.user_name = self.config.get('user_name') or pwd.getpwuid(os.getuid())[0]
+        self.user_host = self.config.get('user_host') or os.uname()[1]
 		
         try:
             mod = importlib.import_module(my_soc_module) 
@@ -70,7 +73,7 @@ class ErrForward(BotPlugin):
 
         msg_j = self.prepare_message(
             typ='Msg', 
-            args=f"Hello! IP: {self.get_my_ip()}. Commands [{self._bot.bot_config.BOT_PREFIX}]. Bot ID: {self.bot_id}. Backend: {self._bot.bot_config.BACKEND}"
+            args=f"Hello! IP: {self.get_my_ip()}. Commands [{self._bot.bot_config.BOT_PREFIX}]. Name: {self.user_name}@{self.user_host}. Backend: {self._bot.bot_config.BACKEND}"
         )
 
         self.log.debug(f" Chan: {chan}")
@@ -86,7 +89,8 @@ class ErrForward(BotPlugin):
         return {
             'channel': "general",
             'module': "moduleSlack",
-            'bot_id': "bot1",
+            'user_name': "",  # Defaults to system user
+            'user_host': "",  # Defaults to system host
             'id_post_override': ""
         }
 
@@ -145,8 +149,8 @@ class ErrForward(BotPlugin):
             args = urllib.parse.quote(args)
 
         msg = {
-            'userName': usr or getattr(self, 'bot_id', 'bot1'), 
-            'userHost': host or 'err-forward', 
+            'userName': usr or self.user_name, 
+            'userHost': host or self.user_host, 
             'frm': str(frm), 
             'typ': typ, 
             'cmd': cmd, 
@@ -272,9 +276,10 @@ class ErrForward(BotPlugin):
             if msg_e['userHost'].endswith('>'): 
                 msg_e['userHost'] = msg_e['userHost'][:-1]
 
-        # Improved Identification using bot_id
-        if msg_e['userName'] == self.bot_id:
-            self.log.info(f"It's for me ({self.bot_id})")
+        # Compatible Identification
+        if ((msg_e['userName'] == self.user_name) 
+                and (msg_e['userHost'] == self.user_host)):
+            self.log.info(f"It's for me ({self.user_name}@{self.user_host})")
             try:
                 old_chan = self.sc.getChannel()
                 self.sc.setChannel(chan)
