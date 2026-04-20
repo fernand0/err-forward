@@ -22,6 +22,9 @@ MODULE_ID_MAP = {
     'moduleTwitter': 'id_str',
 }
 
+# Maximum message length for platforms like Slack
+MAX_MESSAGE_LENGTH = 3800  # Slightly less than 4000 to allow for JSON overhead
+
 
 def end(msg=""):
     return f"END{msg}"
@@ -109,6 +112,31 @@ class ErrForward(BotPlugin):
         """
         yield self.get_my_ip()
         yield end()
+
+    def _split_message(self, text, limit=MAX_MESSAGE_LENGTH):
+        """
+        Splits a message into chunks within the limit, 
+        preferring newline boundaries.
+        """
+        if len(text) <= limit:
+            return [text]
+
+        chunks = []
+        while text:
+            if len(text) <= limit:
+                chunks.append(text)
+                break
+            
+            # Find the last newline within the limit
+            split_at = text.rfind('\n', 0, limit)
+            if split_at == -1:
+                # No newline, split at the limit
+                split_at = limit
+            
+            chunks.append(text[:split_at])
+            text = text[split_at:].lstrip('\n')
+        
+        return chunks
 
     def prepare_message(self, usr="", host="", frm="", 
                         mess=None, typ="", cmd="", args=""):
@@ -223,17 +251,20 @@ class ErrForward(BotPlugin):
                                     f"{method._err_command_template}.md"
                                 ).render(reply)
 
-                    reply_msg = self.prepare_message(
-                        typ='Rep', 
-                        usr=msg_e['userName'], 
-                        host=msg_e['userHost'], 
-                        frm=msg_e['frm'], 
-                        args=txt_r
-                    )
-            
+                    # Split long replies into chunks
+                    txt_chunks = self._split_message(txt_r)
                     chan_p = self['chan']
                     self.sc.setChannel(chan)
-                    self.sc.publishPost(reply_msg, '', chan_p)
+
+                    for chunk in txt_chunks:
+                        reply_msg = self.prepare_message(
+                            typ='Rep', 
+                            usr=msg_e['userName'], 
+                            host=msg_e['userHost'], 
+                            frm=msg_e['frm'], 
+                            args=chunk
+                        )
+                        self.sc.publishPost(reply_msg, '', chan_p)
                 except Exception as e:
                     self.log.error(f"Error executing or replying to command {cmd}: {e}")
             else:
