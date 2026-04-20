@@ -256,7 +256,14 @@ class ErrForward(BotPlugin):
 
     def manageReply(self, chan, msgE, msg):
         self.log.info("Starting manage reply command")
+        self.log.debug("msgE %s" % msgE)
         self.log.info("Command %s" % msgE['cmd'])
+        if '|' in msgE['userHost']:
+            # FIXME Maybe we should check the sdk and the API?
+            msgE['userHost'] = msgE['userHost'].split('|')[1]
+            if msgE['userHost'].endswith('>'): 
+                msgE['userHost'] = msgE['userHost'][:-1]
+
         self.log.debug("User: %s - %s | %s - %s" %
                 (msgE['userName'], self['userName'], 
                     msgE['userHost'], self['userHost']))
