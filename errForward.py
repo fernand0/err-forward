@@ -227,11 +227,26 @@ class ErrForward(BotPlugin):
                 self.log.error(f"Failed to delete command post: {e}")
 
             list_commands = self._bot.all_commands
-            if cmd in list_commands:
-                method = list_commands[cmd]                   
+            
+            # Determine the effective command and arguments
+            effective_cmd = cmd
+            unquoted_args = urllib.parse.unquote(msg_e['args']) if msg_e['args'] else ""
+            
+            potential_long_cmd_parts = unquoted_args.split(' ', 1)
+            if potential_long_cmd_parts and potential_long_cmd_parts[0]: # Check if there is a first part of args
+                test_long_cmd = f"{cmd}_{potential_long_cmd_parts[0]}"
+                if test_long_cmd in list_commands:
+                    effective_cmd = test_long_cmd
+                    if len(potential_long_cmd_parts) > 1:
+                        unquoted_args = potential_long_cmd_parts[1]
+                    else:
+                        unquoted_args = ""
+            
+            if effective_cmd in list_commands:
+                method = list_commands[effective_cmd]                   
                 txt_r = ''
-                if msg_e['args']:
-                    new_args = urllib.parse.unquote(msg_e['args'])
+                if unquoted_args:
+                    new_args = unquoted_args
                     new_msg = ""
                 else:
                     new_msg = Message(frm=self._bot.build_identifier(
