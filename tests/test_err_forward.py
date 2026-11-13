@@ -164,6 +164,27 @@ class TestErrForward(unittest.TestCase):
         # Check underscore escaped properly
         self.assertIn(r'healthy\_and\_running', content)
 
+    def test_manage_reply_accepts_legacy_bot_id_target(self):
+        sent_messages = []
+        self.plugin.send = lambda to, text: sent_messages.append((to, text))
+        self.plugin.config['bot_id'] = 'legacy-bot'
+
+        msg_e = {
+            'typ': 'Rep',
+            'cmd': 'status',
+            'userName': 'legacy-bot',
+            'userHost': 'err-forward',
+            'frm': '@requester:test.org',
+            'args': 'Legacy%20reply',
+        }
+
+        self.plugin.manageReply('test-channel', msg_e, {'ts': '9999.8888'})
+
+        self.assertEqual(len(sent_messages), 1)
+        dest, content = sent_messages[0]
+        self.assertEqual(str(dest), '@requester:test.org')
+        self.assertEqual(content, 'Legacy reply')
+
     def test_forward_command_validation_and_feedback(self):
         msg = Message(frm=self.bot.build_identifier('@alice:test.org'))
 

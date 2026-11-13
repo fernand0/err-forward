@@ -381,9 +381,18 @@ class ErrForward(BotPlugin):
                 user_host = user_host[:-1]
             msg_e['userHost'] = user_host
 
-        # Compatible Identification
-        if (msg_e.get('userName') == self.user_name
-                and msg_e.get('userHost') == self.user_host):
+        target_name = msg_e.get('userName')
+        target_host = msg_e.get('userHost')
+        legacy_bot_id = self.config.get('bot_id', 'bot1') if self.config else 'bot1'
+        is_current_target = (
+            target_name == self.user_name and target_host == self.user_host
+        )
+        is_legacy_target = (
+            target_name == legacy_bot_id and target_host == 'err-forward'
+        )
+
+        # Versions using bot_id addressed replies as <bot_id>@err-forward.
+        if is_current_target or is_legacy_target:
             self.log.info(f"It's for me ({self.user_name}@{self.user_host})")
             try:
                 old_chan = self.sc.getChannel()
