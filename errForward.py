@@ -533,4 +533,4 @@ class ErrForward(BotPlugin):
     managePosts = manage_posts
     forwardCommand = forward_command
     getMyIP = get_my_ip
-    listB = list_bots_cmd
+    #listB = list_bots_cmd
