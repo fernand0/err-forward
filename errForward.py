@@ -89,6 +89,7 @@ class ErrForward(BotPlugin):
 
         self.log.debug(f"Chan: {chan}")
         try:
+            self.sc.setChannel(chan)
             self.sc.publishPost(msg_j, '', chan)
         except Exception as e:
             self.log.error(f"Failed to publish activation message: {e}")
@@ -271,7 +272,8 @@ class ErrForward(BotPlugin):
                     cmd=new_cmd,
                     args=msg.get('args', ''),
                 )
-                self.sc.publishPost(msg_j, '', chan)
+                self.sc.setChannel(chan)
+                self.sc.publishPost(msg_j, '', '')
             except Exception as e:
                 self.log.error(f"Failed to broadcast to bot {bot}: {e}")
 
@@ -366,7 +368,8 @@ class ErrForward(BotPlugin):
                             cmd=effective_cmd,
                             args=chunk,
                         )
-                        self.sc.publishPost(reply_msg, '', chan_p)
+                        self.sc.setChannel(chan_p)
+                        self.sc.publishPost(reply_msg, '', '')
                 except Exception as e:
                     self.log.error(f"Error executing or replying to command {cmd_name}: {e}")
             else:
@@ -489,7 +492,8 @@ class ErrForward(BotPlugin):
                 args=new_args,
             )
             try:
-                self.sc.publishPost(msg_e, '', chan)
+                self.sc.setChannel(chan)
+                self.sc.publishPost(msg_e, '', '')
                 self.log.info(f"End forward {mess}")
                 return f"Forwarded '{cmd}' to channel {chan}."
             except Exception as e:
