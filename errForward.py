@@ -335,8 +335,22 @@ class ErrForward(BotPlugin):
                 # CRITICAL: Always construct a valid Message object whether args exist or not
                 new_msg = Message(frm=sender, body=f"{effective_cmd} {new_args}".strip())
 
+                # errbot splits args for split_args_with commands while dispatching
+                # (core.py); calling the method directly must reproduce that, or the
+                # command gets a string and args[0] yields its first character.
+                splitter = getattr(method, '_err_command_split_args_with', "")
+                if splitter != "":
+                    if hasattr(splitter, 'parse_args'):
+                        call_args = splitter.parse_args(new_args)
+                    elif callable(splitter):
+                        call_args = splitter(new_args)
+                    else:
+                        call_args = new_args.split(splitter)
+                else:
+                    call_args = new_args
+
                 try:
-                    replies = method(new_msg, new_args)
+                    replies = method(new_msg, call_args)
                     if (not inspect.isgeneratorfunction(method)
                             and not isinstance(replies, (tuple, list))):
                         replies = [replies]

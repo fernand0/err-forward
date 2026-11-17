@@ -185,6 +185,37 @@ class TestErrForward(unittest.TestCase):
         self.assertEqual(str(dest), '@requester:test.org')
         self.assertEqual(content, 'Legacy reply')
 
+    def test_manage_command_splits_args_for_split_args_with(self):
+        """
+        A command declared with split_args_with receives a list of tokens, which errbot
+        builds during normal dispatch (core.py) before calling it: forwarding
+        `!plugin config ErrForward` must reach `plugin_config` as ['ErrForward'], not as
+        the string 'ErrForward', whose args[0] was just the letter 'E'.
+        """
+        received_args = []
+
+        def plugin_config_like(mess, args):
+            received_args.append(args)
+            return f"name={args[0]}"
+
+        plugin_config_like._err_command_split_args_with = " "
+        self.bot.all_commands['plugin_config'] = plugin_config_like
+
+        msg_e = {
+            'typ': 'Cmd',
+            'cmd': '!plugin',
+            'args': 'config%20ErrForward',
+            'frm': '@sender:test.org',
+            'userName': 'otheruser',
+            'userHost': 'otherhost',
+        }
+
+        self.plugin.manageCommand('test-channel', msg_e, {'ts': '1111.2222'})
+
+        self.assertEqual(received_args, [['ErrForward']])
+        published = json.loads(self.plugin.sc.publishPost.call_args[0][0])
+        self.assertEqual(urllib.parse.unquote(published['args']), 'name=ErrForward')
+
     def test_forward_command_validation_and_feedback(self):
         msg = Message(frm=self.bot.build_identifier('@alice:test.org'))
 
@@ -204,7 +235,9 @@ class TestErrForward(unittest.TestCase):
 
     def test_list_b_without_end_artifact(self):
         self.plugin.sc.getBots.return_value = ['bot1', 'bot2']
-        res = self.plugin.listB(None, None)
+        # 'listB' is the registered command name (@botcmd), the attribute alias was
+        # dropped in 35fdc59 because it duplicated it and broke startup.
+        res = self.plugin.list_bots_cmd(None, None)
         self.assertEqual(res, {'text': ['bot1', 'bot2']})
 
     def test_manage_posts_safely_handles_exceptions(self):
