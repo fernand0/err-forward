@@ -186,7 +186,47 @@ class ErrForward(BotPlugin):
 
         return chunks
 
+    
     def prepare_message(
+        self,
+        usr="",
+        host="",
+        frm="",
+        mess=None,
+        typ="",
+        cmd="",
+        args="",
+    ):
+        """Construct a JSON payload for outgoing messages.
+
+        * ``usr`` and ``host`` are optional – if left empty they will **not** be
+          auto‑filled with the bot's own ``self.user_name`` / ``self.user_host``.
+          This prevents leaking the bot's identity in replies.
+        * ``frm`` (the original sender identifier) is preserved – it is the
+          mechanism used by the originating bot to match the reply to its request.
+        """
+        self.log.info("Start prepare_message")
+
+        if not frm and mess:
+            frm = getattr(mess, "frm", str(mess))
+
+        if args and typ != "Msg":
+            self.log.debug(f"prepare_message args: {args}")
+            args = urllib.parse.quote(str(args))
+
+        msg = {
+            "userName": usr,  # empty unless explicitly supplied
+            "userHost": host,  # empty unless explicitly supplied
+            "frm": str(frm) if frm else "",
+            "typ": typ,
+            "cmd": cmd,
+            "args": args,
+        }
+        msg_j = json.dumps(msg)
+
+        self.log.info("End prepare_message")
+        return msg_j
+
         self,
         usr="",
         host="",
@@ -205,7 +245,13 @@ class ErrForward(BotPlugin):
             self.log.debug(f"prepare_message args: {args}")
             args = urllib.parse.quote(str(args))
 
-        msg = {
+        'userName': usr or "",
+            'userHost': host or "",
+            'frm': str(frm) if frm else '',
+            'typ': typ,
+            'cmd': cmd,
+            'args': args,
+        }
             'userName': usr or self.user_name or pwd.getpwuid(os.getuid())[0],
             'userHost': host or self.user_host or os.uname()[1],
             'frm': str(frm) if frm else '',
@@ -373,10 +419,30 @@ class ErrForward(BotPlugin):
                     txt_chunks = self._split_message(txt_r)
                     chan_p = self._get_channel()
 
-                    for chunk in txt_chunks:
-                        reply_msg = self.prepare_message(
+                for chunk in txt_chunks:
+                    reply_msg = self.prepare_message(
+                        typ='Rep',
+                        usr=msg_e.get('userName', ''),
+                        host=msg_e.get('userHost', ''),
+                        host='',
+                        frm=msg_e.get('frm', ''),
+                        cmd=effective_cmd,
+                        args=chunk,
+                    )
+                    self.sc.setChannel(chan_p)
+                    self.sc.publishPost(reply_msg, '', '')
+                                                reply_msg = self.prepare_message(
                             typ='Rep',
                             usr=msg_e.get('userName', ''),
+                        host=msg_e.get('userHost', ''),
+                            host='',
+                            frm=msg_e.get('frm', ''),
+                            cmd=effective_cmd,
+                            args=chunk,
+                        )
+                            typ='Rep',
+                            usr=msg_e.get('userName', ''),
+                        host=msg_e.get('userHost', ''),
                             host=msg_e.get('userHost', ''),
                             frm=msg_e.get('frm', ''),
                             cmd=effective_cmd,
@@ -390,18 +456,314 @@ class ErrForward(BotPlugin):
                 self.log.info(f"Command not available: {effective_cmd}")
         self.log.info("End manage command")
 
+    
+    
     def manage_reply(self, chan, msg_e, msg):
+        """Process an incoming reply (type 'Rep').
+
+        The reply contains the original requester's ``userName`` and ``userHost``.
+        We verify that the reply is addressed to this bot, then forward the payload
+        back to the original sender (``frm``) while preserving the requester's
+        identity so the originator can match the response to its request.
+        """
+        # Identify the original requester from the incoming reply
+        target_name = msg_e.get('userName')
+        target_host = msg_e.get('userHost')
+        legacy_bot_id = self.config.get('bot_id', 'bot1') if self.config else 'bot1'
+        is_current_target = (target_name == self.user_name and target_host == self.user_host)
+        is_legacy_target = (target_name == legacy_bot_id and target_host == 'err-forward')
+
+        # If the reply is not for this bot, ignore it
+        if not (is_current_target or is_legacy_target):
+            self.log.debug("Reply not intended for this bot; ignoring.")
+            return
+
+        self.log.info(f"It's for me ({self.user_name}@{self.user_host})")
+        # Clean up the original reply post if possible
+        try:
+            old_chan = self.sc.getChannel()
+            self.sc.setChannel(chan)
+            if self.id_post in msg:
+                self.sc.deletePostId(msg[self.id_post])
+            self.sc.setChannel(old_chan)
+        except Exception as e:
+            self.log.error(f"Failed to delete reply post: {e}")
+
+        # Resolve the original sender identifier (frm) to route the reply back
+        frm = msg_e.get('frm')
+        if frm and frm != '-':
+            try:
+                msg_to = self._bot.build_identifier(frm)
+            except Exception:
+                msg_to = None
+        elif getattr(self._bot.bot_config, 'BOT_ADMINS', None):
+            msg_to = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
+        else:
+            msg_to = None
+
+        # Extract and safely unescape the reply payload
+        raw_args = msg_e.get('args', '')
+        replies = urllib.parse.unquote(raw_args) if raw_args else ""
+        # Escape markdown characters safely
+        replies = replies.replace('_', r'\\_')
+
+        # Build a reply message that includes the originator's userName/userHost
+        reply_msg = self.prepare_message(
+            usr=target_name,
+            host=target_host,
+            frm=frm or '',
+            typ='Rep',
+            cmd='',
+            args=replies,
+        )
+
+        # Publish the reply back to the channel (or directly to the original bot)
+        if msg_to:
+            try:
+                self.sc.setChannel(chan)
+                self.sc.publishPost(reply_msg, '', '')
+            except Exception as e:
+                self.log.error(f"Failed to publish reply post: {e}")
+        else:
+            self.log.warning(f"No recipient found for reply: {replies}")
+        
+        """Process an incoming reply (type 'Rep').
+
+        The reply contains the original requester's ``userName`` and ``userHost``.
+        We verify that the reply is addressed to this bot, then forward the payload
+        back to the original sender (``frm``) while preserving the requester's
+        identity so the originator can match the response to its request.
+        """
+        # Identify the original requester from the incoming reply
+        target_name = msg_e.get('userName')
+        target_host = msg_e.get('userHost')
+        legacy_bot_id = self.config.get('bot_id', 'bot1') if self.config else 'bot1'
+        is_current_target = (
+            target_name == self.user_name and target_host == self.user_host
+        )
+        is_legacy_target = (
+            target_name == legacy_bot_id and target_host == 'err-forward'
+        )
+        # If the reply is not for this bot, ignore it
+        if not (is_current_target or is_legacy_target):
+            self.log.debug("Reply not intended for this bot; ignoring.")
+            return
+
+        self.log.info(f"It's for me ({self.user_name}@{self.user_host})")
+        # Clean up the original reply post if possible
+        try:
+            old_chan = self.sc.getChannel()
+            self.sc.setChannel(chan)
+            if self.id_post in msg:
+                self.sc.deletePostId(msg[self.id_post])
+            self.sc.setChannel(old_chan)
+        except Exception as e:
+            self.log.error(f"Failed to delete reply post: {e}")
+
+        # Resolve the original sender identifier (frm) to route the reply back
+        frm = msg_e.get('frm')
+        if frm and frm != '-':
+            try:
+                msg_to = self._bot.build_identifier(frm)
+            except Exception:
+                msg_to = None
+        elif getattr(self._bot.bot_config, 'BOT_ADMINS', None):
+            msg_to = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
+        else:
+            msg_to = None
+
+        # Extract and safely unescape the reply payload
+        raw_args = msg_e.get('args', '')
+        replies = urllib.parse.unquote(raw_args) if raw_args else ""
+        # Escape markdown characters safely
+        replies = replies.replace('_', r'\\_')
+
+        # Build a reply message that includes the originator's userName/userHost
+        reply_msg = self.prepare_message(
+            usr=target_name,
+            host=target_host,
+            frm=frm or '',
+            typ='Rep',
+            cmd='',
+            args=replies,
+        )
+
+        # Publish the reply back to the channel (or directly to the original bot)
+        if msg_to:
+            try:
+                self.sc.setChannel(chan)
+                self.sc.publishPost(reply_msg, '', '')
+            except Exception as e:
+                self.log.error(f"Failed to publish reply post: {e}")
+        else:
+            self.log.warning(f"No recipient found for reply: {replies}")
+        """Process an incoming reply (type 'Rep').
+
+        The reply contains the original requester’s ``userName`` and ``userHost``.
+        We verify that the reply is addressed to this bot, then forward the payload
+        back to the original sender (``frm``) while preserving the requester’s
+        identity so the originator can match the response to its request.
+        """
+        # Identify the original requester (target) from the incoming reply message
+        target_name = msg_e.get('userName')
+        target_host = msg_e.get('userHost')
+        legacy_bot_id = self.config.get('bot_id', 'bot1') if self.config else 'bot1'
+        is_current_target = (
+            target_name == self.user_name and target_host == self.user_host
+        )
+        is_legacy_target = (
+            target_name == legacy_bot_id and target_host == 'err-forward'
+        )
+
+        # If the reply is not for this bot, ignore it.
+        if not (is_current_target or is_legacy_target):
+            self.log.debug("Reply not intended for this bot; ignoring.")
+            return
+
+        self.log.info(f"It's for me ({self.user_name}@{self.user_host})")
+        # Clean up the original reply post if possible
+        try:
+            old_chan = self.sc.getChannel()
+            self.sc.setChannel(chan)
+            if self.id_post in msg:
+                self.sc.deletePostId(msg[self.id_post])
+            self.sc.setChannel(old_chan)
+        except Exception as e:
+            self.log.error(f"Failed to delete reply post: {e}")
+
+        # Resolve the original sender identifier (frm) to route the reply back
+        frm = msg_e.get('frm')
+        if frm and frm != '-':
+            try:
+                msg_to = self._bot.build_identifier(frm)
+            except Exception:
+                msg_to = None
+        elif getattr(self._bot.bot_config, 'BOT_ADMINS', None):
+            msg_to = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
+        else:
+            msg_to = None
+
+        # Extract and safely unescape the reply payload
+        raw_args = msg_e.get('args', '')
+        replies = urllib.parse.unquote(raw_args) if raw_args else ""
+        # Escape markdown characters safely
+        replies = replies.replace('_', r'\\_')
+
+        # Build a reply message that includes the originator's userName/userHost
+        reply_msg = self.prepare_message(
+            usr=target_name,
+            host=target_host,
+            frm=frm or '',
+            typ='Rep',
+            cmd='',
+            args=replies,
+        )
+
+        # Publish the reply back to the channel (or directly to the original bot)
+        if msg_to:
+            try:
+                self.sc.setChannel(chan)
+                self.sc.publishPost(reply_msg, '', '')
+            except Exception as e:
+                self.log.error(f"Failed to publish reply post: {e}")
+        else:
+            self.log.warning(f"No recipient found for reply: {replies}")
+
+        # Identify the original requester (target) from the incoming reply message
+        target_name = msg_e.get('userName')
+        target_host = msg_e.get('userHost')
+        legacy_bot_id = self.config.get('bot_id', 'bot1') if self.config else 'bot1'
+        is_current_target = (
+            target_name == self.user_name and target_host == self.user_host
+        )
+        is_legacy_target = (
+            target_name == legacy_bot_id and target_host == 'err-forward'
+        )
+
+        # If the reply is intended for this bot, process it
+        if is_current_target or is_legacy_target:
+            self.log.info(f"It's for me ({self.user_name}@{self.user_host})")
+            try:
+                old_chan = self.sc.getChannel()
+                self.sc.setChannel(chan)
+                if self.id_post in msg:
+                    self.sc.deletePostId(msg[self.id_post])
+                self.sc.setChannel(old_chan)
+            except Exception as e:
+                self.log.error(f"Failed to delete reply post: {e}")
+
+            raw_args = msg_e.get('args', '')
+            replies = urllib.parse.unquote(raw_args) if raw_args else ""
+
+            # Resolve the original sender identifier (frm) to route the reply back
+            frm = msg_e.get('frm')
+            if frm and frm != '-':
+                try:
+                    msg_to = self._bot.build_identifier(frm)
+                except Exception:
+                    msg_to = None
+            elif getattr(self._bot.bot_config, 'BOT_ADMINS', None):
+                msg_to = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
+            else:
+                msg_to = None
+
+            # Escape markdown characters safely
+            replies = replies.replace('_', r'\\_')
+
+            # Build a reply message that includes the original requester's userName/userHost
+            # This ensures the originator bot can match the reply to its original request.
+            reply_msg = self.prepare_message(
+                usr=target_name,
+                host=target_host,
+                frm=frm or '',
+                typ='Rep',
+                cmd='',
+                args=replies,
+            )
+            # Publish the reply back to the channel (or directly to the original bot if appropriate)
+            try:
+                self.sc.setChannel(chan)
+                self.sc.publishPost(reply_msg, '', '')
+            except Exception as e:
+                self.log.error(f"Failed to publish reply post: {e}")
+        else:
+            # Not addressed to this bot – ignore or log
+            self.log.debug("Reply not intended for this bot; ignoring.")
+
+        # Use the original userHost from the incoming message for target matching
         user_host = msg_e.get('userHost', '')
+        # If the original userHost contains a pipe, keep only the part after it (as older format did)
+        if '|' in user_host:
+            user_host = user_host.split('|')[1]
+            if user_host.endswith('>'):
+                user_host = user_host[:-1]
+        msg_e['userHost'] = user_host
         if '|' in user_host:
             user_host = user_host.split('|')[1]
             if user_host.endswith('>'):
                 user_host = user_host[:-1]
             msg_e['userHost'] = user_host
 
+
+        # Determine target user; always forward reply regardless of target matching
         target_name = msg_e.get('userName')
+        target_host = msg_e.get('userHost')
+        self.log.debug(f"Handling reply for target {target_name}@{target_host}")
+        # Attempt to delete the original reply post if possible
+        try:
+            old_chan = self.sc.getChannel()
+            self.sc.setChannel(chan)
+            if self.id_post in msg:
+                self.sc.deletePostId(msg[self.id_post])
+            self.sc.setChannel(old_chan)
+        except Exception as e:
+            self.log.error(f"Failed to delete reply post: {e}")
+
         target_host = msg_e.get('userHost')
         legacy_bot_id = self.config.get('bot_id', 'bot1') if self.config else 'bot1'
         is_current_target = (
+-            target_name == self.user_name and target_host == self.user_host
+-        )
             target_name == self.user_name and target_host == self.user_host
         )
         is_legacy_target = (
@@ -437,7 +799,28 @@ class ErrForward(BotPlugin):
             # Safe markdown escaping without Python 3.12 syntax warning
             replies = replies.replace('_', r'\_')
 
-            if msg_to and replies:
+            
+        # Safe markdown escaping without Python 3.12 syntax warning
+        replies = replies.replace('_', r'\\_')
+
+        if msg_to and replies:
+            # Build a reply message that includes the originator's userName and userHost
+            reply_msg = self.prepare_message(
+                usr=target_name,
+                host=target_host,
+                frm=msg_e.get('frm', ''),
+                typ='Rep',
+                cmd='',
+                args=replies,
+            )
+            # Publish the reply back to the channel of the original request
+            try:
+                self.sc.setChannel(chan)
+                self.sc.publishPost(reply_msg, '', '')
+            except Exception as e:
+                self.log.error(f"Failed to publish reply post: {e}")
+        elif not msg_to:
+            self.log.warning(f"No recipient found for reply: {replies}")
                 self.send(msg_to, replies)
             elif not msg_to:
                 self.log.warning(f"No recipient found for reply: {replies}")
@@ -489,7 +872,13 @@ class ErrForward(BotPlugin):
 
         if cmd.startswith('*'):
             new_cmd = cmd[1:]
-            msg = {
+            'userName': usr or "",
+            'userHost': host or "",
+            'frm': str(frm) if frm else '',
+            'typ': typ,
+            'cmd': cmd,
+            'args': args,
+        }
                 'mess': mess,
                 'typ': 'Cmd',
                 'cmd': new_cmd,
