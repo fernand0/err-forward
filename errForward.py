@@ -22,7 +22,7 @@ class ErrForward(BotPlugin):
     # Initialization
     # ---------------------------------------------------------------------
 
-def __init__(self, bot=None):
+    def __init__(self, bot=None):
         super().__init__(bot)
         self.channel = None
         self.sc = None
