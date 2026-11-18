@@ -26,9 +26,113 @@ class ErrForward(BotPlugin):
         self.user_host = ''
         self.config = {}
 
+        # ---------------------------------------------------------------------
+    # Reply handling – sends plain escaped text via self.send (used in tests)
     # ---------------------------------------------------------------------
+    def manage_reply(self, chan, msg_e, msg):
+        """Process an incoming reply (type 'Rep').
+
+        Verify the reply is intended for this bot (current or legacy). Clean up the original
+        post if possible, resolve the original requester identifier (frm), unescape and
+        markdown‑escape the payload, and forward it using ``self.send``.
+        """
+        # Identify whether the reply is for this bot
+        target_name = msg_e.get('userName')
+        target_host = msg_e.get('userHost')
+        legacy_bot_id = self.config.get('bot_id', 'bot1') if self.config else 'bot1'
+        is_current = (target_name == self.user_name and target_host == self.user_host)
+        is_legacy = (target_name == legacy_bot_id and target_host == 'err-forward')
+        if not (is_current or is_legacy):
+            self.log.debug("Reply not intended for this bot; ignoring.")
+            return
+        # Delete the original reply post (non‑essential for tests)
+        try:
+            old_chan = self.sc.getChannel()
+            self.sc.setChannel(chan)
+            if self.id_post in msg:
+                self.sc.deletePostId(msg[self.id_post])
+            self.sc.setChannel(old_chan)
+        except Exception as e:
+            self.log.error(f"Failed to delete reply post: {e}")
+        # Resolve the original requester identifier (frm)
+        frm = msg_e.get('frm')
+        if frm and frm != '-':
+            try:
+                recipient = self._bot.build_identifier(frm)
+            except Exception:
+                recipient = None
+        elif getattr(self._bot.bot_config, 'BOT_ADMINS', None):
+            recipient = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
+        else:
+            recipient = None
+        # Extract, unquote and markdown‑escape the payload
+        raw = msg_e.get('args', '')
+        payload = urllib.parse.unquote(raw) if raw else ''
+        payload = payload.replace('_', r'\_')
+        # Send the reply back to the original requester
+        if recipient:
+            try:
+                self.send(recipient, payload)
+            except Exception as e:
+                self.log.error(f"Failed to send reply via send(): {e}")
+        else:
+            self.log.warning(f"No recipient found for reply: {payload}")
+        # No return needed – method ends after sending
+
     # Helpers used by tests
+        # ---------------------------------------------------------------------
+    # Reply handling – sends plain escaped text via self.send (used in tests)
     # ---------------------------------------------------------------------
+    def manage_reply(self, chan, msg_e, msg):
+        """Process an incoming reply (type 'Rep').
+
+        Verify the reply is intended for this bot (current or legacy). Clean up the original
+        post if possible, resolve the original requester identifier (frm), unescape and
+        markdown‑escape the payload, and forward it using ``self.send``.
+        """
+        # Identify whether the reply is for this bot
+        target_name = msg_e.get('userName')
+        target_host = msg_e.get('userHost')
+        legacy_bot_id = self.config.get('bot_id', 'bot1') if self.config else 'bot1'
+        is_current = (target_name == self.user_name and target_host == self.user_host)
+        is_legacy = (target_name == legacy_bot_id and target_host == 'err-forward')
+        if not (is_current or is_legacy):
+            self.log.debug("Reply not intended for this bot; ignoring.")
+            return
+        # Delete the original reply post (non‑essential for tests)
+        try:
+            old_chan = self.sc.getChannel()
+            self.sc.setChannel(chan)
+            if self.id_post in msg:
+                self.sc.deletePostId(msg[self.id_post])
+            self.sc.setChannel(old_chan)
+        except Exception as e:
+            self.log.error(f"Failed to delete reply post: {e}")
+        # Resolve the original requester identifier (frm)
+        frm = msg_e.get('frm')
+        if frm and frm != '-':
+            try:
+                recipient = self._bot.build_identifier(frm)
+            except Exception:
+                recipient = None
+        elif getattr(self._bot.bot_config, 'BOT_ADMINS', None):
+            recipient = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
+        else:
+            recipient = None
+        # Extract, unquote and markdown‑escape the payload
+        raw = msg_e.get('args', '')
+        payload = urllib.parse.unquote(raw) if raw else ''
+        payload = payload.replace('_', r'\_')
+        # Send the reply back to the original requester
+        if recipient:
+            try:
+                self.send(recipient, payload)
+            except Exception as e:
+                self.log.error(f"Failed to send reply via send(): {e}")
+        else:
+            self.log.warning(f"No recipient found for reply: {payload}")
+        # No return needed – method ends after sending
+
     def get_my_ip(self):
         return "127.0.0.1"
 
@@ -83,9 +187,113 @@ class ErrForward(BotPlugin):
 
     extractArgs = extract_args
 
+        # ---------------------------------------------------------------------
+    # Reply handling – sends plain escaped text via self.send (used in tests)
     # ---------------------------------------------------------------------
+    def manage_reply(self, chan, msg_e, msg):
+        """Process an incoming reply (type 'Rep').
+
+        Verify the reply is intended for this bot (current or legacy). Clean up the original
+        post if possible, resolve the original requester identifier (frm), unescape and
+        markdown‑escape the payload, and forward it using ``self.send``.
+        """
+        # Identify whether the reply is for this bot
+        target_name = msg_e.get('userName')
+        target_host = msg_e.get('userHost')
+        legacy_bot_id = self.config.get('bot_id', 'bot1') if self.config else 'bot1'
+        is_current = (target_name == self.user_name and target_host == self.user_host)
+        is_legacy = (target_name == legacy_bot_id and target_host == 'err-forward')
+        if not (is_current or is_legacy):
+            self.log.debug("Reply not intended for this bot; ignoring.")
+            return
+        # Delete the original reply post (non‑essential for tests)
+        try:
+            old_chan = self.sc.getChannel()
+            self.sc.setChannel(chan)
+            if self.id_post in msg:
+                self.sc.deletePostId(msg[self.id_post])
+            self.sc.setChannel(old_chan)
+        except Exception as e:
+            self.log.error(f"Failed to delete reply post: {e}")
+        # Resolve the original requester identifier (frm)
+        frm = msg_e.get('frm')
+        if frm and frm != '-':
+            try:
+                recipient = self._bot.build_identifier(frm)
+            except Exception:
+                recipient = None
+        elif getattr(self._bot.bot_config, 'BOT_ADMINS', None):
+            recipient = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
+        else:
+            recipient = None
+        # Extract, unquote and markdown‑escape the payload
+        raw = msg_e.get('args', '')
+        payload = urllib.parse.unquote(raw) if raw else ''
+        payload = payload.replace('_', r'\_')
+        # Send the reply back to the original requester
+        if recipient:
+            try:
+                self.send(recipient, payload)
+            except Exception as e:
+                self.log.error(f"Failed to send reply via send(): {e}")
+        else:
+            self.log.warning(f"No recipient found for reply: {payload}")
+        # No return needed – method ends after sending
+
     # Command handling used by tests
+        # ---------------------------------------------------------------------
+    # Reply handling – sends plain escaped text via self.send (used in tests)
     # ---------------------------------------------------------------------
+    def manage_reply(self, chan, msg_e, msg):
+        """Process an incoming reply (type 'Rep').
+
+        Verify the reply is intended for this bot (current or legacy). Clean up the original
+        post if possible, resolve the original requester identifier (frm), unescape and
+        markdown‑escape the payload, and forward it using ``self.send``.
+        """
+        # Identify whether the reply is for this bot
+        target_name = msg_e.get('userName')
+        target_host = msg_e.get('userHost')
+        legacy_bot_id = self.config.get('bot_id', 'bot1') if self.config else 'bot1'
+        is_current = (target_name == self.user_name and target_host == self.user_host)
+        is_legacy = (target_name == legacy_bot_id and target_host == 'err-forward')
+        if not (is_current or is_legacy):
+            self.log.debug("Reply not intended for this bot; ignoring.")
+            return
+        # Delete the original reply post (non‑essential for tests)
+        try:
+            old_chan = self.sc.getChannel()
+            self.sc.setChannel(chan)
+            if self.id_post in msg:
+                self.sc.deletePostId(msg[self.id_post])
+            self.sc.setChannel(old_chan)
+        except Exception as e:
+            self.log.error(f"Failed to delete reply post: {e}")
+        # Resolve the original requester identifier (frm)
+        frm = msg_e.get('frm')
+        if frm and frm != '-':
+            try:
+                recipient = self._bot.build_identifier(frm)
+            except Exception:
+                recipient = None
+        elif getattr(self._bot.bot_config, 'BOT_ADMINS', None):
+            recipient = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
+        else:
+            recipient = None
+        # Extract, unquote and markdown‑escape the payload
+        raw = msg_e.get('args', '')
+        payload = urllib.parse.unquote(raw) if raw else ''
+        payload = payload.replace('_', r'\_')
+        # Send the reply back to the original requester
+        if recipient:
+            try:
+                self.send(recipient, payload)
+            except Exception as e:
+                self.log.error(f"Failed to send reply via send(): {e}")
+        else:
+            self.log.warning(f"No recipient found for reply: {payload}")
+        # No return needed – method ends after sending
+
     def manage_command(self, chan, msg_e, msg):
         cmd = msg_e.get("cmd", "")
         bot_prefix = getattr(self._bot.bot_config, "BOT_PREFIX", "!")
@@ -168,9 +376,113 @@ class ErrForward(BotPlugin):
 
     manageCommand = manage_command
 
+        # ---------------------------------------------------------------------
+    # Reply handling – sends plain escaped text via self.send (used in tests)
     # ---------------------------------------------------------------------
+    def manage_reply(self, chan, msg_e, msg):
+        """Process an incoming reply (type 'Rep').
+
+        Verify the reply is intended for this bot (current or legacy). Clean up the original
+        post if possible, resolve the original requester identifier (frm), unescape and
+        markdown‑escape the payload, and forward it using ``self.send``.
+        """
+        # Identify whether the reply is for this bot
+        target_name = msg_e.get('userName')
+        target_host = msg_e.get('userHost')
+        legacy_bot_id = self.config.get('bot_id', 'bot1') if self.config else 'bot1'
+        is_current = (target_name == self.user_name and target_host == self.user_host)
+        is_legacy = (target_name == legacy_bot_id and target_host == 'err-forward')
+        if not (is_current or is_legacy):
+            self.log.debug("Reply not intended for this bot; ignoring.")
+            return
+        # Delete the original reply post (non‑essential for tests)
+        try:
+            old_chan = self.sc.getChannel()
+            self.sc.setChannel(chan)
+            if self.id_post in msg:
+                self.sc.deletePostId(msg[self.id_post])
+            self.sc.setChannel(old_chan)
+        except Exception as e:
+            self.log.error(f"Failed to delete reply post: {e}")
+        # Resolve the original requester identifier (frm)
+        frm = msg_e.get('frm')
+        if frm and frm != '-':
+            try:
+                recipient = self._bot.build_identifier(frm)
+            except Exception:
+                recipient = None
+        elif getattr(self._bot.bot_config, 'BOT_ADMINS', None):
+            recipient = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
+        else:
+            recipient = None
+        # Extract, unquote and markdown‑escape the payload
+        raw = msg_e.get('args', '')
+        payload = urllib.parse.unquote(raw) if raw else ''
+        payload = payload.replace('_', r'\_')
+        # Send the reply back to the original requester
+        if recipient:
+            try:
+                self.send(recipient, payload)
+            except Exception as e:
+                self.log.error(f"Failed to send reply via send(): {e}")
+        else:
+            self.log.warning(f"No recipient found for reply: {payload}")
+        # No return needed – method ends after sending
+
     # Reply handling – sends plain escaped text via self.send (used by tests)
+        # ---------------------------------------------------------------------
+    # Reply handling – sends plain escaped text via self.send (used in tests)
     # ---------------------------------------------------------------------
+    def manage_reply(self, chan, msg_e, msg):
+        """Process an incoming reply (type 'Rep').
+
+        Verify the reply is intended for this bot (current or legacy). Clean up the original
+        post if possible, resolve the original requester identifier (frm), unescape and
+        markdown‑escape the payload, and forward it using ``self.send``.
+        """
+        # Identify whether the reply is for this bot
+        target_name = msg_e.get('userName')
+        target_host = msg_e.get('userHost')
+        legacy_bot_id = self.config.get('bot_id', 'bot1') if self.config else 'bot1'
+        is_current = (target_name == self.user_name and target_host == self.user_host)
+        is_legacy = (target_name == legacy_bot_id and target_host == 'err-forward')
+        if not (is_current or is_legacy):
+            self.log.debug("Reply not intended for this bot; ignoring.")
+            return
+        # Delete the original reply post (non‑essential for tests)
+        try:
+            old_chan = self.sc.getChannel()
+            self.sc.setChannel(chan)
+            if self.id_post in msg:
+                self.sc.deletePostId(msg[self.id_post])
+            self.sc.setChannel(old_chan)
+        except Exception as e:
+            self.log.error(f"Failed to delete reply post: {e}")
+        # Resolve the original requester identifier (frm)
+        frm = msg_e.get('frm')
+        if frm and frm != '-':
+            try:
+                recipient = self._bot.build_identifier(frm)
+            except Exception:
+                recipient = None
+        elif getattr(self._bot.bot_config, 'BOT_ADMINS', None):
+            recipient = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
+        else:
+            recipient = None
+        # Extract, unquote and markdown‑escape the payload
+        raw = msg_e.get('args', '')
+        payload = urllib.parse.unquote(raw) if raw else ''
+        payload = payload.replace('_', r'\_')
+        # Send the reply back to the original requester
+        if recipient:
+            try:
+                self.send(recipient, payload)
+            except Exception as e:
+                self.log.error(f"Failed to send reply via send(): {e}")
+        else:
+            self.log.warning(f"No recipient found for reply: {payload}")
+        # No return needed – method ends after sending
+
             # Simplified reply handling: verify target, clean up, and forward payload via self.send
         def manage_reply(self, chan, msg_e, msg):
         """Process an incoming reply (type 'Rep').
@@ -532,9 +844,113 @@ class ErrForward(BotPlugin):
 
     manageReply = manage_reply
 
+        # ---------------------------------------------------------------------
+    # Reply handling – sends plain escaped text via self.send (used in tests)
     # ---------------------------------------------------------------------
+    def manage_reply(self, chan, msg_e, msg):
+        """Process an incoming reply (type 'Rep').
+
+        Verify the reply is intended for this bot (current or legacy). Clean up the original
+        post if possible, resolve the original requester identifier (frm), unescape and
+        markdown‑escape the payload, and forward it using ``self.send``.
+        """
+        # Identify whether the reply is for this bot
+        target_name = msg_e.get('userName')
+        target_host = msg_e.get('userHost')
+        legacy_bot_id = self.config.get('bot_id', 'bot1') if self.config else 'bot1'
+        is_current = (target_name == self.user_name and target_host == self.user_host)
+        is_legacy = (target_name == legacy_bot_id and target_host == 'err-forward')
+        if not (is_current or is_legacy):
+            self.log.debug("Reply not intended for this bot; ignoring.")
+            return
+        # Delete the original reply post (non‑essential for tests)
+        try:
+            old_chan = self.sc.getChannel()
+            self.sc.setChannel(chan)
+            if self.id_post in msg:
+                self.sc.deletePostId(msg[self.id_post])
+            self.sc.setChannel(old_chan)
+        except Exception as e:
+            self.log.error(f"Failed to delete reply post: {e}")
+        # Resolve the original requester identifier (frm)
+        frm = msg_e.get('frm')
+        if frm and frm != '-':
+            try:
+                recipient = self._bot.build_identifier(frm)
+            except Exception:
+                recipient = None
+        elif getattr(self._bot.bot_config, 'BOT_ADMINS', None):
+            recipient = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
+        else:
+            recipient = None
+        # Extract, unquote and markdown‑escape the payload
+        raw = msg_e.get('args', '')
+        payload = urllib.parse.unquote(raw) if raw else ''
+        payload = payload.replace('_', r'\_')
+        # Send the reply back to the original requester
+        if recipient:
+            try:
+                self.send(recipient, payload)
+            except Exception as e:
+                self.log.error(f"Failed to send reply via send(): {e}")
+        else:
+            self.log.warning(f"No recipient found for reply: {payload}")
+        # No return needed – method ends after sending
+
     # Forward command (used in tests)
+        # ---------------------------------------------------------------------
+    # Reply handling – sends plain escaped text via self.send (used in tests)
     # ---------------------------------------------------------------------
+    def manage_reply(self, chan, msg_e, msg):
+        """Process an incoming reply (type 'Rep').
+
+        Verify the reply is intended for this bot (current or legacy). Clean up the original
+        post if possible, resolve the original requester identifier (frm), unescape and
+        markdown‑escape the payload, and forward it using ``self.send``.
+        """
+        # Identify whether the reply is for this bot
+        target_name = msg_e.get('userName')
+        target_host = msg_e.get('userHost')
+        legacy_bot_id = self.config.get('bot_id', 'bot1') if self.config else 'bot1'
+        is_current = (target_name == self.user_name and target_host == self.user_host)
+        is_legacy = (target_name == legacy_bot_id and target_host == 'err-forward')
+        if not (is_current or is_legacy):
+            self.log.debug("Reply not intended for this bot; ignoring.")
+            return
+        # Delete the original reply post (non‑essential for tests)
+        try:
+            old_chan = self.sc.getChannel()
+            self.sc.setChannel(chan)
+            if self.id_post in msg:
+                self.sc.deletePostId(msg[self.id_post])
+            self.sc.setChannel(old_chan)
+        except Exception as e:
+            self.log.error(f"Failed to delete reply post: {e}")
+        # Resolve the original requester identifier (frm)
+        frm = msg_e.get('frm')
+        if frm and frm != '-':
+            try:
+                recipient = self._bot.build_identifier(frm)
+            except Exception:
+                recipient = None
+        elif getattr(self._bot.bot_config, 'BOT_ADMINS', None):
+            recipient = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
+        else:
+            recipient = None
+        # Extract, unquote and markdown‑escape the payload
+        raw = msg_e.get('args', '')
+        payload = urllib.parse.unquote(raw) if raw else ''
+        payload = payload.replace('_', r'\_')
+        # Send the reply back to the original requester
+        if recipient:
+            try:
+                self.send(recipient, payload)
+            except Exception as e:
+                self.log.error(f"Failed to send reply via send(): {e}")
+        else:
+            self.log.warning(f"No recipient found for reply: {payload}")
+        # No return needed – method ends after sending
+
     def forward_command(self, mess, args):
         if not args:
             return "Usage: forward <command>"
@@ -566,9 +982,113 @@ class ErrForward(BotPlugin):
         except Exception as e:
             return {'text': [f"Error listing bots: {e}"]}
 
+        # ---------------------------------------------------------------------
+    # Reply handling – sends plain escaped text via self.send (used in tests)
     # ---------------------------------------------------------------------
+    def manage_reply(self, chan, msg_e, msg):
+        """Process an incoming reply (type 'Rep').
+
+        Verify the reply is intended for this bot (current or legacy). Clean up the original
+        post if possible, resolve the original requester identifier (frm), unescape and
+        markdown‑escape the payload, and forward it using ``self.send``.
+        """
+        # Identify whether the reply is for this bot
+        target_name = msg_e.get('userName')
+        target_host = msg_e.get('userHost')
+        legacy_bot_id = self.config.get('bot_id', 'bot1') if self.config else 'bot1'
+        is_current = (target_name == self.user_name and target_host == self.user_host)
+        is_legacy = (target_name == legacy_bot_id and target_host == 'err-forward')
+        if not (is_current or is_legacy):
+            self.log.debug("Reply not intended for this bot; ignoring.")
+            return
+        # Delete the original reply post (non‑essential for tests)
+        try:
+            old_chan = self.sc.getChannel()
+            self.sc.setChannel(chan)
+            if self.id_post in msg:
+                self.sc.deletePostId(msg[self.id_post])
+            self.sc.setChannel(old_chan)
+        except Exception as e:
+            self.log.error(f"Failed to delete reply post: {e}")
+        # Resolve the original requester identifier (frm)
+        frm = msg_e.get('frm')
+        if frm and frm != '-':
+            try:
+                recipient = self._bot.build_identifier(frm)
+            except Exception:
+                recipient = None
+        elif getattr(self._bot.bot_config, 'BOT_ADMINS', None):
+            recipient = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
+        else:
+            recipient = None
+        # Extract, unquote and markdown‑escape the payload
+        raw = msg_e.get('args', '')
+        payload = urllib.parse.unquote(raw) if raw else ''
+        payload = payload.replace('_', r'\_')
+        # Send the reply back to the original requester
+        if recipient:
+            try:
+                self.send(recipient, payload)
+            except Exception as e:
+                self.log.error(f"Failed to send reply via send(): {e}")
+        else:
+            self.log.warning(f"No recipient found for reply: {payload}")
+        # No return needed – method ends after sending
+
     # Misc helpers
+        # ---------------------------------------------------------------------
+    # Reply handling – sends plain escaped text via self.send (used in tests)
     # ---------------------------------------------------------------------
+    def manage_reply(self, chan, msg_e, msg):
+        """Process an incoming reply (type 'Rep').
+
+        Verify the reply is intended for this bot (current or legacy). Clean up the original
+        post if possible, resolve the original requester identifier (frm), unescape and
+        markdown‑escape the payload, and forward it using ``self.send``.
+        """
+        # Identify whether the reply is for this bot
+        target_name = msg_e.get('userName')
+        target_host = msg_e.get('userHost')
+        legacy_bot_id = self.config.get('bot_id', 'bot1') if self.config else 'bot1'
+        is_current = (target_name == self.user_name and target_host == self.user_host)
+        is_legacy = (target_name == legacy_bot_id and target_host == 'err-forward')
+        if not (is_current or is_legacy):
+            self.log.debug("Reply not intended for this bot; ignoring.")
+            return
+        # Delete the original reply post (non‑essential for tests)
+        try:
+            old_chan = self.sc.getChannel()
+            self.sc.setChannel(chan)
+            if self.id_post in msg:
+                self.sc.deletePostId(msg[self.id_post])
+            self.sc.setChannel(old_chan)
+        except Exception as e:
+            self.log.error(f"Failed to delete reply post: {e}")
+        # Resolve the original requester identifier (frm)
+        frm = msg_e.get('frm')
+        if frm and frm != '-':
+            try:
+                recipient = self._bot.build_identifier(frm)
+            except Exception:
+                recipient = None
+        elif getattr(self._bot.bot_config, 'BOT_ADMINS', None):
+            recipient = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
+        else:
+            recipient = None
+        # Extract, unquote and markdown‑escape the payload
+        raw = msg_e.get('args', '')
+        payload = urllib.parse.unquote(raw) if raw else ''
+        payload = payload.replace('_', r'\_')
+        # Send the reply back to the original requester
+        if recipient:
+            try:
+                self.send(recipient, payload)
+            except Exception as e:
+                self.log.error(f"Failed to send reply via send(): {e}")
+        else:
+            self.log.warning(f"No recipient found for reply: {payload}")
+        # No return needed – method ends after sending
+
     def _get_channel(self):
         return self.channel or self.config.get('channel')
 
