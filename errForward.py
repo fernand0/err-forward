@@ -22,28 +22,13 @@ class ErrForward(BotPlugin):
     # Initialization
     # ---------------------------------------------------------------------
 
-    def __init__(self, bot=None):
-        super().__init__(bot)
-        self.channel = None
-        self.sc = None
-        self.id_post = "ts"
-        self.user_name = ""
-        self.user_host = ""
-        self.config = {}
-        super().__init__(bot, *args, **kwargs)
-        self.channel = None
-        self.sc = None
-        self.id_post = "ts"
-        self.user_name = ""
-        self.user_host = ""
-        self.config = {}
-        super().__init__(bot)
-        self.channel = None
-        self.sc = None
-        self.id_post = "ts"
-        self.user_name = ""
-        self.user_host = ""
-        self.config = {}
+    def __init__(self, bot=None, *args, **kwargs):
+        """Initialize the plugin.
+
+        Accepts the optional ``bot`` argument required by ``BotPlugin`` and any
+        additional positional or keyword arguments. Calls the base ``BotPlugin``
+        initializer once and sets default attributes.
+        """
         super().__init__(bot)
         self.channel = None
         self.sc = None
@@ -52,20 +37,6 @@ class ErrForward(BotPlugin):
         self.user_host = ""
         self.config = {}
 
-        super().__init__(bot, *args, **kwargs)
-        self.channel = None
-        self.sc = None
-        self.id_post = "ts"
-        self.user_name = ""
-        self.user_host = ""
-        self.config = {}
-        super().__init__(bot)
-        self.channel = None
-        self.sc = None
-        self.id_post = "ts"
-        self.user_name = ""
-        self.user_host = ""
-        self.config = {}
 
     # ---------------------------------------------------------------------
     # Helpers
