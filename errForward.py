@@ -140,45 +140,73 @@ class ErrForward(BotPlugin):
 
     extractArgs = extract_args
 
-    # -----------------------------------------------------------------
-    # Reply handling – single implementation
-    # -----------------------------------------------------------------
+    ## -----------------------------------------------------------------
+    ## Reply handling – single implementation
+    ## -----------------------------------------------------------------
+    #def manage_reply(self, chan, msg_e, msg):
+    #    """Process an incoming reply (type 'Rep')."""
+    #    # Delete the original reply post (non‑essential for tests)
+    #    try:
+    #        old_chan = self.sc.getChannel()
+    #        self.sc.setChannel(chan)
+    #        if self.id_post in msg:
+    #            self.sc.deletePostId(msg[self.id_post])
+    #        self.sc.setChannel(old_chan)
+    #    except Exception as e:
+    #        self.log.error(f"Failed to delete reply post: {e}")
+
+    #    frm = msg_e.get("frm")
+    #    if frm and frm != "-":
+    #        try:
+    #            recipient = self._bot.build_identifier(frm)
+    #        except Exception:
+    #            recipient = None
+    #    elif getattr(self._bot.bot_config, "BOT_ADMINS", None):
+    #        recipient = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
+    #    else:
+    #        recipient = None
+
+    #    raw = msg_e.get("args", "")
+    #    payload = urllib.parse.unquote(raw) if raw else ""
+    #    payload = payload.replace("_", r"\_")
+    #    if recipient:
+    #        try:
+    #            self.send(recipient, payload)
+    #        except Exception as e:
+    #            self.log.error(f"Failed to send reply via send(): {e}")
+    #    else:
+    #        self.log.warning(f"No recipient found for reply: {payload}")
+    #    return payload
+
     def manage_reply(self, chan, msg_e, msg):
-        """Process an incoming reply (type 'Rep')."""
-        # Delete the original reply post (non‑essential for tests)
-        try:
-            old_chan = self.sc.getChannel()
-            self.sc.setChannel(chan)
-            if self.id_post in msg:
+        if '|' in msg_e.get('userHost', ''):
+            msg_e['userHost'] = msg_e['userHost'].split('|')[1]
+            if msg_e['userHost'].endswith('>'):
+                msg_e['userHost'] = msg_e['userHost'][:-1]
+
+        # Compatible Identification
+        if ((msg_e.get('userName') == self.user_name)
+                and (msg_e.get('userHost') == self.user_host)):
+            self.log.info(f"It's for me ({self.user_name}@{self.user_host})")
+            try:
+                old_chan = self.sc.getChannel()
+                self.sc.setChannel(chan)
                 self.sc.deletePostId(msg[self.id_post])
-            self.sc.setChannel(old_chan)
-        except Exception as e:
-            self.log.error(f"Failed to delete reply post: {e}")
-
-        frm = msg_e.get("frm")
-        if frm and frm != "-":
-            try:
-                recipient = self._bot.build_identifier(frm)
-            except Exception:
-                recipient = None
-        elif getattr(self._bot.bot_config, "BOT_ADMINS", None):
-            recipient = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
-        else:
-            recipient = None
-
-        raw = msg_e.get("args", "")
-        payload = urllib.parse.unquote(raw) if raw else ""
-        payload = payload.replace("_", r"\_")
-        if recipient:
-            try:
-                self.send(recipient, payload)
+                self.sc.channel = old_chan
             except Exception as e:
-                self.log.error(f"Failed to send reply via send(): {e}")
-        else:
-            self.log.warning(f"No recipient found for reply: {payload}")
-        return payload
+                self.log.error(f"Failed to delete reply post: {e}")
 
-    # -----------------------------------------------------------------
+            replies = urllib.parse.unquote(msg_e['args'])
+            if not (msg_e.get('frm') == '-'):
+                msg_to = self._bot.build_identifier(msg_e['frm'])
+            else:
+                msg_to = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
+            replies = replies.replace('_', r'\_')
+
+            self.send(msg_to, replies)
+
+
+    ## -----------------------------------------------------------------
     # Command handling
     # -----------------------------------------------------------------
     def manage_command(self, chan, msg_e, msg):
