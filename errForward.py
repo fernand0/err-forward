@@ -241,6 +241,13 @@ class ErrForward(BotPlugin):
         """!forward <command> – forward a command to the channel."""
         return self.forward_command(mess, args)
 
+    @botcmd
+    def fw(self, mess, args):
+        """ Command forwarding to another bot (abrv)
+        """
+        yield self.forward_command(mess, args)
+
+
     @botcmd(name="listB", template="monospace")
     def list_bots_cmd(self, mess, args):
         """List bots visible on the current channel."""
