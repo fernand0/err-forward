@@ -29,7 +29,6 @@ class ErrForward(BotPlugin):
         except Exception:
             pass
         """Initialize the plugin with minimal required attributes."""
-        super().__init__(bot, *args, **kwargs)
         self.channel = None          # current channel (set in activate)
         self.sc = None               # social‑module backend instance
         self.id_post = "ts"
