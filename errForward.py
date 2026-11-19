@@ -19,28 +19,18 @@ class ErrForward(BotPlugin):
     """Main plugin class."""
 
     # ---------------------------------------------------------------------
+
     # Initialization
     # ---------------------------------------------------------------------
 
-    def __init__(self, bot=None, *args, **kwargs):
-        """Initialize the plugin.
 
-        Accepts the optional ``bot`` argument required by ``BotPlugin`` and any
-        additional positional or keyword arguments. Calls the base ``BotPlugin``
-        initializer once and sets default attributes.
-        """
-        super().__init__(bot)
-        self.channel = None
-        self.sc = None
-        self.id_post = "ts"
-        self.user_name = ""
-        self.user_host = ""
-        self.config = {}
 
 
     # ---------------------------------------------------------------------
+
     # Helpers
     # ---------------------------------------------------------------------
+
     def _split_message(self, text, limit=MAX_MESSAGE_LENGTH):
         """Split a long text into chunks not exceeding *limit*."""
         if len(text) <= limit:
@@ -93,8 +83,10 @@ class ErrForward(BotPlugin):
     extractArgs = extract_args
 
     # ---------------------------------------------------------------------
+
     # Reply handling – single implementation
     # ---------------------------------------------------------------------
+
     def manage_reply(self, chan, msg_e, msg):
         """Process an incoming reply (type 'Rep').
 
@@ -152,8 +144,10 @@ class ErrForward(BotPlugin):
         return payload
 
     # ---------------------------------------------------------------------
+
     # Command handling
     # ---------------------------------------------------------------------
+
     def manage_command(self, chan, msg_e, msg):
         """Execute a command that starts with the bot prefix."""
         cmd = msg_e.get("cmd", "")
@@ -219,8 +213,10 @@ class ErrForward(BotPlugin):
     manageCommand = manage_command
 
     # ---------------------------------------------------------------------
+
     # Forwarding utilities
     # ---------------------------------------------------------------------
+
     def forward_command(self, mess, args):
         """Forward a raw command to the current channel (used in tests)."""
         result = "Usage: forward <command>"
@@ -258,8 +254,10 @@ class ErrForward(BotPlugin):
             return {"text": [f"Error listing bots: {e}"]}
 
     # ---------------------------------------------------------------------
+
     # Misc helpers
     # ---------------------------------------------------------------------
+
     def _get_channel(self):
         """Return the channel configured for the plugin."""
         return self.channel or self.config.get("channel")
