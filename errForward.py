@@ -1,5 +1,5 @@
 # Simplified ErrForward plugin for unit tests.
-# Retains the core logic needed by the test suite while removing duplicated and complex code.
+# Retains core logic needed by the test suite.
 
 import json
 import urllib.parse
@@ -18,19 +18,78 @@ MODULE_ID_MAP = {
 class ErrForward(BotPlugin):
     """Main plugin class."""
 
-    # ---------------------------------------------------------------------
+    # -----------------------------------------------------------------
+    # Activation
+    # -----------------------------------------------------------------
+    def activate(self):
+        """Activate the plugin, loading configuration and backend."""
+        self.log.info("Activating ErrForward")
+        try:
+            super().activate()
+        except Exception:
+            pass
+        """Initialize the plugin with minimal required attributes."""
+        super().__init__(bot, *args, **kwargs)
+        self.channel = None          # current channel (set in activate)
+        self.sc = None               # social‑module backend instance
+        self.id_post = "ts"
+        self.user_name = ""
+        self.user_host = ""
+        self.config = {}
 
-    # Initialization
-    # ---------------------------------------------------------------------
 
+        if not getattr(self, "config", None):
+            self.log.info("ErrForward not configured. Skipping activation")
+            return
+        # Determine module and identifiers
+        my_module = self.config.get("module", "moduleSlack")
+        self.id_post = self.config.get("id_post_override") or MODULE_ID_MAP.get(my_module, "id")
+        # Default user info
+        try:
+            import pwd, os
+            self.user_name = self.config.get("user_name") or pwd.getpwuid(os.getuid())[0]
+            self.user_host = self.config.get("user_host") or os.uname()[1]
+        except Exception as e:
+            self.log.error(f"Failed to set user defaults: {e}")
+            self.user_name = self.config.get("user_name", "")
+            self.user_host = self.config.get("user_host", "")
+        # Load social module backend if possible
+        try:
+            import importlib
+            mod = importlib.import_module(f"socialModules.{my_module}")
+            cls = getattr(mod, my_module)
+            site = cls()
+            site.setUrl(my_module)
+            site.setClient(my_module)
+            self.sc = site
+        except Exception as e:
+            self.log.error(f"Failed to load module {my_module}: {e}")
+            return
+        # Set channel
+        chan = str(self.config.get("channel", "general"))
+        self.channel = chan
+        self["chan"] = chan
+        self.sc.setChannel(chan)
+        # Send activation message
+        try:
+            msg_j = self.prepare_message(
+                typ="Msg",
+                args=f"Hello! IP: {self.get_my_ip()}. Commands [{self._bot.bot_config.BOT_PREFIX}]. Name: {self.user_name}@{self.user_host}. Backend: {self._bot.bot_config.BACKEND}"
+            )
+            self.sc.publishPost(msg_j, "", chan)
+        except Exception as e:
+            self.log.error(f"Failed to publish activation message: {e}")
+        # Start poller if available
+        if hasattr(self, "start_poller"):
+            try:
+                self.start_poller(60, self.manage_posts)
+            except Exception:
+                pass
+        self.log.info('ErrForward activated')
 
-
-
-    # ---------------------------------------------------------------------
-
+    # -----------------------------------------------------------------
     # Helpers
-    # ---------------------------------------------------------------------
-
+    # -----------------------------------------------------------------
     def _split_message(self, text, limit=MAX_MESSAGE_LENGTH):
         """Split a long text into chunks not exceeding *limit*."""
         if len(text) <= limit:
@@ -47,8 +106,7 @@ class ErrForward(BotPlugin):
             text = text[split_at:].lstrip("\n")
         return chunks
 
-    def prepare_message(self, usr="", host="", frm="", mess=None, typ="",
-                       cmd="", args=""):
+    def prepare_message(self, usr="", host="", frm="", mess=None, typ="", cmd="", args=""):
         """Create the JSON payload used by the bot."""
         if not frm and mess:
             frm = getattr(mess, "frm", str(mess))
@@ -64,7 +122,6 @@ class ErrForward(BotPlugin):
         }
         return json.dumps(payload)
 
-    # Alias kept for backward compatibility
     prepareMessage = prepare_message
 
     def extract_args(self, msg):
@@ -82,22 +139,11 @@ class ErrForward(BotPlugin):
 
     extractArgs = extract_args
 
-    # ---------------------------------------------------------------------
-
+    # -----------------------------------------------------------------
     # Reply handling – single implementation
-    # ---------------------------------------------------------------------
-
+    # -----------------------------------------------------------------
     def manage_reply(self, chan, msg_e, msg):
-        """Process an incoming reply (type 'Rep').
-
-        Verify the reply is intended for this bot (current or legacy). Clean up the original
-        post if possible, resolve the original requester identifier (frm), unescape and
-        markdown‑escape the payload, and forward it using ``self.send``.
-        """
-        # Previously we filtered replies based on target_name and target_host.
-        # This bot now processes any reply that carries an originator identifier.
-        # No early exit based on those fields.
-
+        """Process an incoming reply (type 'Rep')."""
         # Delete the original reply post (non‑essential for tests)
         try:
             old_chan = self.sc.getChannel()
@@ -108,7 +154,6 @@ class ErrForward(BotPlugin):
         except Exception as e:
             self.log.error(f"Failed to delete reply post: {e}")
 
-        # Resolve the original requester identifier (frm)
         frm = msg_e.get("frm")
         if frm and frm != "-":
             try:
@@ -120,12 +165,9 @@ class ErrForward(BotPlugin):
         else:
             recipient = None
 
-        # Extract, unquote and markdown‑escape the payload
         raw = msg_e.get("args", "")
         payload = urllib.parse.unquote(raw) if raw else ""
         payload = payload.replace("_", r"\_")
-
-        # Send the reply back to the original requester
         if recipient:
             try:
                 self.send(recipient, payload)
@@ -133,21 +175,11 @@ class ErrForward(BotPlugin):
                 self.log.error(f"Failed to send reply via send(): {e}")
         else:
             self.log.warning(f"No recipient found for reply: {payload}")
-
-        # Optional: publish a reply message back to the channel (uncomment if needed)
-        # reply_msg = self.prepare_message(
-        #     usr="", host="", frm=frm or "", typ="Rep", cmd="", args=payload
-        # )
-        # self.sc.setChannel(chan)
-        # self.sc.publishPost(reply_msg, "", "")
-        # self.sc.setChannel(self._get_channel())
         return payload
 
-    # ---------------------------------------------------------------------
-
+    # -----------------------------------------------------------------
     # Command handling
-    # ---------------------------------------------------------------------
-
+    # -----------------------------------------------------------------
     def manage_command(self, chan, msg_e, msg):
         """Execute a command that starts with the bot prefix."""
         cmd = msg_e.get("cmd", "")
@@ -155,7 +187,6 @@ class ErrForward(BotPlugin):
         if not cmd.startswith(bot_prefix):
             return None
         cmd_name = cmd[len(bot_prefix) :]
-
         # Delete original post (best‑effort)
         try:
             old_chan = self.sc.getChannel()
@@ -165,18 +196,12 @@ class ErrForward(BotPlugin):
             self.sc.setChannel(old_chan)
         except Exception:
             pass
-
-        # Locate the command method
         method = self._bot.all_commands.get(cmd_name)
         if not method:
             return None
-
-        # Build Message object for the sender
         frm = msg_e.get("frm")
         sender = self._bot.build_identifier(frm) if frm else None
         message_obj = Message(frm=sender, body=cmd_name)
-
-        # Split args if needed
         raw_args = msg_e.get("args", "")
         unquoted = urllib.parse.unquote(raw_args) if raw_args else ""
         splitter = getattr(method, "_err_command_split_args_with", "")
@@ -189,22 +214,14 @@ class ErrForward(BotPlugin):
                 call_args = unquoted.split(splitter)
         else:
             call_args = unquoted
-
-        # Invoke the command
         replies = method(message_obj, call_args)
-
-        # Normalise reply(s)
         if replies is None:
             replies = []
         if not isinstance(replies, (list, tuple)):
             replies = [replies]
         txt = "\n".join(str(r) for r in replies if r is not None)
-
-        # Publish split messages
         for chunk in self._split_message(txt):
-            reply_msg = self.prepare_message(
-                usr="", host="", frm=frm or "", typ="Rep", cmd="", args=chunk
-            )
+            reply_msg = self.prepare_message(usr="", host="", frm=frm or "", typ="Rep", cmd="", args=chunk)
             self.sc.setChannel(chan)
             self.sc.publishPost(reply_msg, "", "")
             self.sc.setChannel(self._get_channel())
@@ -212,11 +229,9 @@ class ErrForward(BotPlugin):
 
     manageCommand = manage_command
 
-    # ---------------------------------------------------------------------
-
+    # -----------------------------------------------------------------
     # Forwarding utilities
-    # ---------------------------------------------------------------------
-
+    # -----------------------------------------------------------------
     def forward_command(self, mess, args):
         """Forward a raw command to the current channel (used in tests)."""
         result = "Usage: forward <command>"
@@ -243,10 +258,8 @@ class ErrForward(BotPlugin):
 
     @botcmd
     def fw(self, mess, args):
-        """ Command forwarding to another bot (abrv)
-        """
+        """Command forwarding to another bot (abbr)."""
         yield self.forward_command(mess, args)
-
 
     @botcmd(name="listB", template="monospace")
     def list_bots_cmd(self, mess, args):
@@ -260,11 +273,9 @@ class ErrForward(BotPlugin):
         except Exception as e:
             return {"text": [f"Error listing bots: {e}"]}
 
-    # ---------------------------------------------------------------------
-
+    # -----------------------------------------------------------------
     # Misc helpers
-    # ---------------------------------------------------------------------
-
+    # -----------------------------------------------------------------
     def _get_channel(self):
         """Return the channel configured for the plugin."""
         return self.channel or self.config.get("channel")
