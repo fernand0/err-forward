@@ -34,7 +34,7 @@ class ErrForward(BotPlugin):
         self.id_post = "ts"
         self.user_name = ""
         self.user_host = ""
-        self.config = {}
+        #self.config = {}
 
 
         if not getattr(self, "config", None):
@@ -59,7 +59,9 @@ class ErrForward(BotPlugin):
             cls = getattr(mod, my_module)
             site = cls()
             site.setUrl(my_module)
+            self.log.info(f"Setting client {my_module}")
             site.setClient(my_module)
+            self.log.info(f"End Setting client {my_module}")
             self.sc = site
         except Exception as e:
             self.log.error(f"Failed to load module {my_module}: {e}")
