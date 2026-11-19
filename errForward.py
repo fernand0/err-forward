@@ -131,14 +131,9 @@ class ErrForward(BotPlugin):
         post if possible, resolve the original requester identifier (frm), unescape and
         markdown‑escape the payload, and forward it using ``self.send``.
         """
-        target_name = msg_e.get("userName")
-        target_host = msg_e.get("userHost")
-        legacy_bot_id = self.config.get("bot_id", LEGACY_BOT_ID) if self.config else LEGACY_BOT_ID
-        is_current = (target_name == self.user_name and target_host == self.user_host)
-        is_legacy = (target_name == legacy_bot_id and target_host == "err-forward")
-        if not (is_current or is_legacy):
-            self.log.debug("Reply not intended for this bot; ignoring.")
-            return None
+        # Previously we filtered replies based on target_name and target_host.
+        # This bot now processes any reply that carries an originator identifier.
+        # No early exit based on those fields.
 
         # Delete the original reply post (non‑essential for tests)
         try:
