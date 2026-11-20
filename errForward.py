@@ -436,7 +436,7 @@ class ErrForward(BotPlugin):
 
     def manage_posts(self):
         # chan = self._get_channel()
-        self.log.info(f"Start manage posts in ({chan})")
+        self.log.info(f"Start manage posts")
         if not hasattr(self, 'sc') or not self.sc or not chan:
             return
         chan = self.sc.getChannel()
