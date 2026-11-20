@@ -244,7 +244,8 @@ class ErrForward(BotPlugin):
 
     def broadcast_command(self, msg, cmd):
         self.log.info("Starting Broadcast")
-        chan = self._get_channel()
+        #chan = self._get_channel()
+        chan = self.sc.getChannel()
         if not hasattr(self, 'sc') or not self.sc:
             self.log.error("Plugin not configured for broadcast")
             return
@@ -526,7 +527,8 @@ class ErrForward(BotPlugin):
         """
         List bots connected to the Slack channel
         """
-        chan = self._get_channel()
+        #chan = self._get_channel()
+        chan = self.sc.getChannel()
         if not hasattr(self, 'sc') or not self.sc:
             return {'text': ['ErrForward is not configured.']}
         try:
