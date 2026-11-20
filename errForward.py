@@ -291,6 +291,7 @@ class ErrForward(BotPlugin):
                 old_chan = self.sc.getChannel()
                 self.sc.setChannel(chan)
                 if self.id_post in msg:
+                    self.log.info(f"Chann: {chan} Id: {self.id_post} MsgId: {msg[self.id_post]}")
                     self.sc.deletePostId(msg[self.id_post])
                 self.sc.setChannel(old_chan)
             except Exception as e:
@@ -399,9 +400,10 @@ class ErrForward(BotPlugin):
             try:
                 old_chan = self.sc.getChannel()
                 self.sc.setChannel(chan)
+                self.log.info(f"Chann: {chan} Id: {self.id_post}")
                 if self.id_post in msg:
                     self.sc.deletePostId(msg[self.id_post])
-                self.sc.setChannel(old_chan)
+                self.sc.channel = old_chan
             except Exception as e:
                 self.log.error(f"Failed to delete reply post: {e}")
 
