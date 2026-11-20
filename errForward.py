@@ -377,6 +377,7 @@ class ErrForward(BotPlugin):
         self.log.info("End manage command")
 
     def manage_reply(self, chan, msg_e, msg):
+        self.log.info(f"Start manage reply ({msg})")
         user_host = msg_e.get('userHost', '')
         if '|' in user_host:
             user_host = user_host.split('|')[1]
@@ -393,6 +394,9 @@ class ErrForward(BotPlugin):
         is_legacy_target = (
             target_name == legacy_bot_id and target_host == 'err-forward'
         )
+        self.log.info(f"Username: {self.user_name} Userhost: {self.user_host}"
+                      f" Target: {target_name} Target host: {target_host}"
+                      f" Legacy: {legacy_bot_id}")
 
         # Versions using bot_id addressed replies as <bot_id>@err-forward.
         if is_current_target or is_legacy_target:
@@ -430,9 +434,11 @@ class ErrForward(BotPlugin):
                 self.log.warning(f"No recipient found for reply: {replies}")
 
     def manage_posts(self):
-        chan = self._get_channel()
+        # chan = self._get_channel()
+        self.log.info(f"Start manage posts in ({chan})")
         if not hasattr(self, 'sc') or not self.sc or not chan:
             return
+        chan = self.sc.getChannel()
 
         try:
             self.sc.setPosts()
@@ -460,7 +466,8 @@ class ErrForward(BotPlugin):
     def forward_command(self, mess, args):
         sender = getattr(mess, 'frm', 'unknown')
         self.log.info(f"Begin forward {mess} from {sender}")
-        chan = self._get_channel()
+        # chan = self._get_channel()
+        chan = self.sc.getChannel()
         if not hasattr(self, 'sc') or not self.sc:
             return "ErrForward is not configured. Please configure the plugin first."
 
