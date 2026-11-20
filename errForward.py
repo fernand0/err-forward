@@ -355,8 +355,9 @@ class ErrForward(BotPlugin):
 
                     # Split long replies into chunks
                     txt_chunks = self._split_message(txt_r)
-                    chan_p = self._get_channel()
-
+                    # chan_p = self._get_channel()
+                    old_chan = self.sc.getChannel()
+                    self.sc.setChannel(chan)
                     for chunk in txt_chunks:
                         reply_msg = self.prepare_message(
                             typ='Rep',
@@ -366,7 +367,8 @@ class ErrForward(BotPlugin):
                             cmd=effective_cmd,
                             args=chunk,
                         )
-                        self.sc.publishPost(reply_msg, '', chan_p)
+                        self.sc.publishPost(reply_msg, '', chan)
+                        self.sc.setChannel(old_chan)
                 except Exception as e:
                     self.log.error(f"Error executing or replying to command {cmd_name}: {e}")
             else:
