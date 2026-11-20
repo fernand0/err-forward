@@ -441,6 +441,7 @@ class ErrForward(BotPlugin):
             return
         chan = self.sc.getChannel()
         if not self.sc or not chan:
+            return
 
         try:
             self.sc.setPosts()
