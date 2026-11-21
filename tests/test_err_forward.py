@@ -229,6 +229,24 @@ class TestErrForward(unittest.TestCase):
             bad_cfg['channel'] = ''
             self.plugin.check_configuration(bad_cfg)
 
+    def test_check_configuration_accepts_optional_keys(self):
+        cfg = {
+            'channel': 'general',
+            'bot_id': 'bot1',
+            'priv_key_path': '/tmp/test_key.pem',
+            'require_signature': True
+        }
+        # Should not raise ValidationException
+        self.plugin.check_configuration(cfg)
+
+    def test_default_key_path_and_loading(self):
+        default_path = self.plugin._get_default_key_path()
+        self.assertTrue(len(default_path) > 0)
+        self.assertTrue(default_path.endswith('.pem'))
+        key = self.plugin._load_private_key()
+        self.assertIsNotNone(key)
+
+
 
 if __name__ == '__main__':
     unittest.main()

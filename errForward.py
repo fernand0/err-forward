@@ -45,11 +45,32 @@ class ErrForward(BotPlugin):
     user_name = None
     user_host = None
 
+    def _get_default_key_path(self):
+        """Determine a sensible default path for the bot's private key.
+        Prefers Errbot's BOT_DATA_DIR, then ~/.errbot, and falls back to the plugin dir.
+        """
+        bot_id = self.config.get('bot_id') if self.config else None
+        key_name = f"{bot_id}_key.pem" if bot_id else "bot_key.pem"
+
+        data_dir = getattr(getattr(self, '_bot', None), 'bot_config', None)
+        bot_data_dir = getattr(data_dir, 'BOT_DATA_DIR', None)
+        user_errbot = os.path.expanduser('~/.errbot')
+
+        target_path = os.path.join(os.path.dirname(__file__), key_name)
+        if bot_data_dir and os.path.isdir(bot_data_dir):
+            target_path = os.path.join(bot_data_dir, key_name)
+        elif os.path.isdir(user_errbot):
+            target_path = os.path.join(user_errbot, key_name)
+        return target_path
+
     def _load_private_key(self):
         """Load or generate an Ed25519 private key for this bot.
         Returns the private key object.
         """
         priv_key_path = self.config.get('priv_key_path') if self.config else None
+        if not priv_key_path:
+            priv_key_path = self._get_default_key_path()
+
         private_key = None
         if priv_key_path and os.path.exists(priv_key_path):
             with open(priv_key_path, 'rb') as f:
@@ -58,13 +79,17 @@ class ErrForward(BotPlugin):
         else:
             private_key = ed25519.Ed25519PrivateKey.generate()
             if priv_key_path:
-                pem = private_key.private_bytes(
-                    encoding=serialization.Encoding.PEM,
-                    format=serialization.PrivateFormat.PKCS8,
-                    encryption_algorithm=serialization.NoEncryption()
-                )
-                with open(priv_key_path, 'wb') as f:
-                    f.write(pem)
+                try:
+                    pem = private_key.private_bytes(
+                        encoding=serialization.Encoding.PEM,
+                        format=serialization.PrivateFormat.PKCS8,
+                        encryption_algorithm=serialization.NoEncryption()
+                    )
+                    with open(priv_key_path, 'wb') as f:
+                        f.write(pem)
+                    os.chmod(priv_key_path, 0o600)
+                except Exception as e:
+                    self.log.error(f"Failed to save private key to {priv_key_path}: {e}")
         return private_key
 
     def _load_peer_keys(self):
@@ -96,7 +121,7 @@ class ErrForward(BotPlugin):
         private_key = self._load_private_key()
         payload_json = json.dumps(payload_dict, sort_keys=True).encode('utf-8')
         signature = private_key.sign(payload_json)
-        bot_id = self.config.get('bot_id', 'bot1') if self.config else 'bot1'
+        bot_id = (self.config.get('bot_id') if self.config else None) or self.user_name or 'bot1'
         uptime = int(self._bot.get_uptime()) if hasattr(self._bot, 'get_uptime') else 0
         envelope = {
             "ver": 1,
@@ -219,7 +244,7 @@ class ErrForward(BotPlugin):
                 pub_b64 = base64.b64encode(pub_bytes).decode('utf-8')
                 key_payload = {
                     'typ': 'KeyAnnounce',
-                    'sender': self.config.get('bot_id', 'bot1'),
+                    'sender': (self.config.get('bot_id') if self.config else None) or self.user_name or 'bot1',
                     'pubkey': pub_b64
                 }
                 signed_key_announce = self._sign_envelope(key_payload)
@@ -236,19 +261,16 @@ class ErrForward(BotPlugin):
     def get_configuration_template(self):
         return {
             'channel': "general",
-            'module': "moduleSlack",
-            'user_name': "",  # Defaults to system user
-            'user_host': "",  # Defaults to system host
-            'id_post_override': "",
-            'priv_key_path': "",  # Path to store private key PEM (optional)
-            'bot_id': "bot1",  # Identifier used in key announcements
-            'require_signature': False,  # Backward compatibility flag
         }
 
     def check_configuration(self, configuration):
         if hasattr(super(), 'check_configuration'):
-            super().check_configuration(configuration)
-        if not configuration.get('channel'):
+            # Only delegate to super if keys strictly match the template,
+            # allowing optional extra keys without triggering Errbot's strict mismatch error.
+            template = self.get_configuration_template()
+            if isinstance(configuration, dict) and set(configuration.keys()) == set(template.keys()):
+                super().check_configuration(configuration)
+        if not isinstance(configuration, dict) or not configuration.get('channel'):
             from errbot import ValidationException
             raise ValidationException("The 'channel' configuration key must not be empty.")
         return None
@@ -526,7 +548,7 @@ class ErrForward(BotPlugin):
 
             target_name = msg_e.get('userName')
             target_host = msg_e.get('userHost')
-            legacy_bot_id = self.config.get('bot_id', 'bot1') if self.config else 'bot1'
+            legacy_bot_id = (self.config.get('bot_id') if self.config else None) or self.user_name or 'bot1'
             is_current_target = (
                 target_name == self.user_name and target_host == self.user_host
             )

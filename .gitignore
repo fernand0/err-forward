@@ -2,3 +2,6 @@ __pycache__/
 moduleContent.py
 moduleSlack.py
 moduleTumblr.py
+*.pem
+*.key
+peer_keys.json
