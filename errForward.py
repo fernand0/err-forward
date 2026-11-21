@@ -72,8 +72,9 @@ class ErrForward(BotPlugin):
 
         chan = str(self.config.get('channel', 'general'))
         self.channel = chan
-        self['chan'] = chan
+        # self['chan'] = chan
         self.sc.setChannel(chan)
+        self.log.info(f"chanAct {self.sc.getChannel()}")
 
         bot_prefix = getattr(self._bot.bot_config, 'BOT_PREFIX', '!')
         backend = getattr(self._bot.bot_config, 'BACKEND', 'Unknown')
@@ -87,14 +88,15 @@ class ErrForward(BotPlugin):
             ),
         )
 
-        self.log.debug(f"Chan: {chan}")
+        self.log.debug(f"Chan: {self.sc.getChannel()}")
         try:
-            self.sc.publishPost(msg_j, '', chan)
+            self.sc.publishPost(msg_j, '', self.sc.getChannel())
         except Exception as e:
             self.log.error(f"Failed to publish activation message: {e}")
 
         self.start_poller(60, self.manage_posts)
         self.log.info("ErrForward has been activated")
+        self.log.info(f"chanAct {self.sc.getChannel()}")
 
     def get_configuration_template(self):
         return {
@@ -119,20 +121,20 @@ class ErrForward(BotPlugin):
             return self.config[option]
         return None
 
-    def _get_channel(self):
-        """
-        Get configured channel with safe fallback
-        """
-        if self.channel:
-            return self.channel
-        if self.config and isinstance(self.config, dict) and self.config.get('channel'):
-            return str(self.config['channel'])
-        try:
-            if hasattr(self, '_store') and self._store is not None and 'chan' in self:
-                return self['chan']
-        except Exception:
-            pass
-        return None
+    # def _get_channel(self):
+    #     """
+    #     Get configured channel with safe fallback
+    #     """
+    #     if self.channel:
+    #         return self.channel
+    #     if self.config and isinstance(self.config, dict) and self.config.get('channel'):
+    #         return str(self.config['channel'])
+    #     try:
+    #         if hasattr(self, '_store') and self._store is not None and 'chan' in self:
+    #             return self['chan']
+    #     except Exception:
+    #         pass
+    #     return None
 
     def get_my_ip(self):
         """
@@ -278,7 +280,7 @@ class ErrForward(BotPlugin):
 
         self.log.info("End Broadcast")
 
-    def manage_command(self, chan, msg_e, msg):
+    def manage_command(self, msg_e, msg):
         cmd = msg_e.get('cmd', '')
         self.log.info(f"Start manage command ({cmd})")
         bot_prefix = getattr(self._bot.bot_config, 'BOT_PREFIX', '!')
@@ -289,12 +291,14 @@ class ErrForward(BotPlugin):
         if prefix == bot_prefix:
             self.log.info(f"{cmd_name} it's for me")
             try:
-                old_chan = self.sc.getChannel()
-                self.sc.setChannel(chan)
+                #old_chan = self.sc.getChannel()
+                #self.log.info(f"OldChann: {old_chan} Id: {self.id_post} MsgId: {msg[self.id_post]}")
+                #self.sc.setChannel(chan) #self.chan?
                 if self.id_post in msg:
-                    self.log.info(f"Chann: {chan} Id: {self.id_post} MsgId: {msg[self.id_post]}")
+                    #self.log.info(f"Chann: {chan} Id: {self.id_post} MsgId: {msg[self.id_post]}")
+                    #self.log.info(f"Chann->: {self.sc.getChannel()} Id: {self.id_post} MsgId: {msg[self.id_post]}")
                     self.sc.deletePostId(msg[self.id_post])
-                self.sc.setChannel(old_chan)
+                #self.sc.setChannel(old_chan)
             except Exception as e:
                 self.log.error(f"Failed to delete command post: {e}")
 
@@ -358,8 +362,8 @@ class ErrForward(BotPlugin):
                     # Split long replies into chunks
                     txt_chunks = self._split_message(txt_r)
                     # chan_p = self._get_channel()
-                    old_chan = self.sc.getChannel()
-                    self.sc.setChannel(chan)
+                    #old_chan = self.sc.getChannel()
+                    #self.sc.setChannel(chan)
                     for chunk in txt_chunks:
                         reply_msg = self.prepare_message(
                             typ='Rep',
@@ -369,15 +373,16 @@ class ErrForward(BotPlugin):
                             cmd=effective_cmd,
                             args=chunk,
                         )
+                        chan  = self.sc.getChannel()
                         self.sc.publishPost(reply_msg, '', chan)
-                        self.sc.setChannel(old_chan)
+                        #self.sc.setChannel(old_chan)
                 except Exception as e:
                     self.log.error(f"Error executing or replying to command {cmd_name}: {e}")
             else:
                 self.log.info(f"Command not available: {effective_cmd}")
         self.log.info("End manage command")
 
-    def manage_reply(self, chan, msg_e, msg):
+    def manage_reply(self, msg_e, msg):
         self.log.info(f"Start manage reply ({msg})")
         user_host = msg_e.get('userHost', '')
         if '|' in user_host:
@@ -403,12 +408,12 @@ class ErrForward(BotPlugin):
         if is_current_target or is_legacy_target:
             self.log.info(f"It's for me ({self.user_name}@{self.user_host})")
             try:
-                old_chan = self.sc.getChannel()
-                self.sc.setChannel(chan)
-                self.log.info(f"Chann: {chan} Id: {self.id_post}")
+                # old_chan = self.sc.getChannel()
+                # self.sc.setChannel(chan)
+                # self.log.info(f"Chann: {chan} Id: {self.id_post}")
                 if self.id_post in msg:
                     self.sc.deletePostId(msg[self.id_post])
-                self.sc.channel = old_chan
+                # self.sc.channel = old_chan
             except Exception as e:
                 self.log.error(f"Failed to delete reply post: {e}")
 
@@ -439,9 +444,11 @@ class ErrForward(BotPlugin):
         self.log.info(f"Start manage posts")
         if not hasattr(self, 'sc'):
             return
-        chan = self.sc.getChannel()
-        if not self.sc or not chan:
-            return
+        # chan = self.sc.getChannel()
+        # self.log.info(f"Start manage posts in chan  {chan}")
+
+        # if not chan:
+        #     return
 
         try:
             self.sc.setPosts()
@@ -457,12 +464,12 @@ class ErrForward(BotPlugin):
                 msg_type = msg_e.get('typ') or msg_e.get('type')
                 if msg_type == 'Cmd':
                     try:
-                        self.manage_command(chan, msg_e, msg)
+                        self.manage_command(msg_e, msg)
                     except Exception as e:
                         self.log.exception(f"Error handling Cmd post: {e}")
                 elif msg_type == 'Rep':
                     try:
-                        self.manage_reply(chan, msg_e, msg)
+                        self.manage_reply(msg_e, msg)
                     except Exception as e:
                         self.log.exception(f"Error handling Rep post: {e}")
 
@@ -470,7 +477,7 @@ class ErrForward(BotPlugin):
         sender = getattr(mess, 'frm', 'unknown')
         self.log.info(f"Begin forward {mess} from {sender}")
         # chan = self._get_channel()
-        chan = self.sc.getChannel()
+        # chan = self.sc.getChannel()
         if not hasattr(self, 'sc') or not self.sc:
             return "ErrForward is not configured. Please configure the plugin first."
 
@@ -484,6 +491,7 @@ class ErrForward(BotPlugin):
             cmd = args_str
             new_args = ""
 
+        chan = self.sc.getChannel()
         if cmd.startswith('*'):
             new_cmd = cmd[1:]
             msg = {
