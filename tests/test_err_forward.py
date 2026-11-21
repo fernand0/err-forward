@@ -248,5 +248,99 @@ class TestErrForward(unittest.TestCase):
 
 
 
+    def test_manage_command_split_args_with_space(self):
+        """
+        When the target command is decorated with split_args_with=' ',
+        manage_command must pass a split list to the method (mirroring errbot core).
+        This was the root cause of .fw ,list c0 returning 0 results.
+        """
+        received_args = []
+
+        def dummy_list(mess, args):
+            received_args.append(args)
+            return f"list received: {args!r}"
+
+        # Mimic @botcmd(split_args_with=' ')
+        dummy_list._err_command_split_args_with = ' '
+        dummy_list._err_command_template = None
+
+        self.bot.all_commands['list'] = dummy_list
+
+        msg_e = {
+            'typ': 'Cmd',
+            'cmd': '!list',
+            'args': urllib.parse.quote('c0'),
+            'frm': '@sender:test.org',
+            'userName': 'peer',
+            'userHost': 'peerhost',
+        }
+        self.plugin.manageCommand('test-channel', msg_e, {'ts': '1111.0001'})
+
+        self.assertEqual(len(received_args), 1)
+        # Must be a list, not the raw string
+        self.assertIsInstance(received_args[0], list)
+        self.assertEqual(received_args[0], ['c0'])
+
+    def test_manage_command_split_args_with_none(self):
+        """
+        When the target command is decorated with split_args_with=None,
+        manage_command must split on whitespace (same as str.split()).
+        """
+        received_args = []
+
+        def dummy_search(mess, args):
+            received_args.append(args)
+            return f"search: {args!r}"
+
+        dummy_search._err_command_split_args_with = None
+        dummy_search._err_command_template = None
+
+        self.bot.all_commands['search'] = dummy_search
+
+        msg_e = {
+            'typ': 'Cmd',
+            'cmd': '!search',
+            'args': urllib.parse.quote('foo bar baz'),
+            'frm': '@sender:test.org',
+            'userName': 'peer',
+            'userHost': 'peerhost',
+        }
+        self.plugin.manageCommand('test-channel', msg_e, {'ts': '1111.0002'})
+
+        self.assertEqual(len(received_args), 1)
+        self.assertIsInstance(received_args[0], list)
+        self.assertEqual(received_args[0], ['foo', 'bar', 'baz'])
+
+    def test_manage_command_no_split_args_with_keeps_string(self):
+        """
+        When the target command has the default split_args_with="" (no splitting),
+        manage_command must pass the raw string unchanged.
+        """
+        received_args = []
+
+        def dummy_echo(mess, args):
+            received_args.append(args)
+            return f"echo: {args}"
+
+        dummy_echo._err_command_split_args_with = ""   # default: no splitting
+        dummy_echo._err_command_template = None
+
+        self.bot.all_commands['echo'] = dummy_echo
+
+        msg_e = {
+            'typ': 'Cmd',
+            'cmd': '!echo',
+            'args': urllib.parse.quote('hello world'),
+            'frm': '@sender:test.org',
+            'userName': 'peer',
+            'userHost': 'peerhost',
+        }
+        self.plugin.manageCommand('test-channel', msg_e, {'ts': '1111.0003'})
+
+        self.assertEqual(len(received_args), 1)
+        self.assertIsInstance(received_args[0], str)
+        self.assertEqual(received_args[0], 'hello world')
+
+
 if __name__ == '__main__':
     unittest.main()

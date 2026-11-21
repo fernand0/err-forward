@@ -456,22 +456,43 @@ class ErrForward(BotPlugin):
             # Determine the effective command and arguments (support longer compound commands)
             effective_cmd = cmd_name
             raw_args = msg_e.get('args', '')
-            unquoted_args = urllib.parse.unquote(raw_args) if raw_args else ""
+            unquoted_args = urllib.parse.unquote(raw_args) if (isinstance(raw_args, str) and raw_args) else (raw_args or "")
 
-            potential_long_cmd_parts = unquoted_args.split(' ', 1)
-            if potential_long_cmd_parts and potential_long_cmd_parts[0]:
-                test_long_cmd = f"{cmd_name}_{potential_long_cmd_parts[0]}"
+            potential_parts = unquoted_args.split() if isinstance(unquoted_args, str) else []
+            args_remaining = unquoted_args
+            for i in range(len(potential_parts), 0, -1):
+                test_long_cmd = f"{cmd_name}_{'_'.join(potential_parts[:i])}"
                 if test_long_cmd in list_commands:
                     effective_cmd = test_long_cmd
-                    if len(potential_long_cmd_parts) > 1:
-                        unquoted_args = potential_long_cmd_parts[1]
-                    else:
-                        unquoted_args = ""
+                    args_remaining = ' '.join(potential_parts[i:])
+                    break
 
             if effective_cmd in list_commands:
                 method = list_commands[effective_cmd]
                 txt_r = ''
-                new_args = unquoted_args
+                new_args = args_remaining
+
+                # Parse/split args according to the command's expected split settings
+                split_args_with = getattr(
+                    method,
+                    '_err_command_split_args_with',
+                    getattr(getattr(method, '__func__', None), '_err_command_split_args_with', "")
+                )
+                parsed_args = new_args
+                if split_args_with != "":
+                    try:
+                        if hasattr(split_args_with, "parse_args"):
+                            import shlex
+                            parsed_args = split_args_with.parse_args(shlex.split(new_args))
+                        elif callable(split_args_with):
+                            parsed_args = split_args_with(new_args)
+                        elif split_args_with is None:
+                            parsed_args = new_args.split() if new_args else []
+                        else:
+                            parsed_args = new_args.split(split_args_with) if new_args else []
+                    except Exception as e:
+                        self.log.warning(f"Error splitting command args with {split_args_with}: {e}")
+                        parsed_args = new_args.split() if new_args else []
 
                 # Build proper sender identifier and Message object
                 sender_str = msg_e.get('frm')
@@ -485,11 +506,20 @@ class ErrForward(BotPlugin):
                 else:
                     sender = None
 
-                # CRITICAL: Always construct a valid Message object whether args exist or not
-                new_msg = Message(frm=sender, body=f"{effective_cmd} {new_args}".strip())
+                body_text = f"{bot_prefix}{effective_cmd} {new_args}".strip() if new_args else f"{bot_prefix}{effective_cmd}"
+                new_msg = Message(frm=sender, body=body_text)
+                if hasattr(new_msg, '__dict__'):
+                    new_msg.text = body_text
 
                 try:
-                    replies = method(new_msg, new_args)
+                    try:
+                        replies = method(new_msg, parsed_args)
+                    except TypeError as te:
+                        if parsed_args != new_args:
+                            replies = method(new_msg, new_args)
+                        else:
+                            raise te
+
                     if (not inspect.isgeneratorfunction(method)
                             and not isinstance(replies, (tuple, list))):
                         replies = [replies]
