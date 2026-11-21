@@ -133,29 +133,69 @@ class ErrForward(BotPlugin):
         }
         return json.dumps(envelope)
 
-    def _verify_envelope(self, envelope_str):
-        """Verify a signed envelope string.
-        Returns the inner payload dict if verification succeeds, else None.
+    def _has_signing_capability(self):
+        """Return True if this bot can sign (private key is available/loadable)."""
+        result = False
+        try:
+            priv_key_path = self.config.get('priv_key_path') if self.config else None
+            priv_key_path = priv_key_path or self._get_default_key_path()
+            if priv_key_path and os.path.exists(priv_key_path):
+                with open(priv_key_path, 'rb') as key_file:
+                    serialization.load_pem_private_key(key_file.read(), password=None)
+                result = True
+        except Exception:
+            result = False
+        return result
+
+    def _try_verify_envelope(self, envelope_str):
+        """Attempt to verify a signed envelope string.
+
+        Returns a 3-tuple (payload, verified, is_signed):
+          - payload:   the inner payload dict (or None if parsing failed entirely)
+          - verified:  True if signature matched a known peer key, False otherwise
+          - is_signed: True if the message looks like a signed envelope
         """
-        result = None
+        payload = None
+        verified = False
+        is_signed = False
         try:
             envelope = json.loads(envelope_str) if isinstance(envelope_str, str) else envelope_str
-            if isinstance(envelope, dict):
-                payload = envelope.get('payload')
+            if isinstance(envelope, dict) and 'sig' in envelope and 'payload' in envelope:
+                is_signed = True
                 sig_b64 = envelope.get('sig')
                 sender = envelope.get('sender')
+                payload = envelope.get('payload')
                 if payload and sig_b64 and sender:
                     peer_keys = self._load_peer_keys()
                     pub_b64 = peer_keys.get(sender)
+                    if not pub_b64 and payload.get('typ') == 'KeyAnnounce':
+                        pub_b64 = payload.get('pubkey')
                     if pub_b64:
                         pub_bytes = base64.b64decode(pub_b64)
                         public_key = ed25519.Ed25519PublicKey.from_public_bytes(pub_bytes)
                         payload_json = json.dumps(payload, sort_keys=True).encode('utf-8')
                         signature = base64.b64decode(sig_b64)
                         public_key.verify(signature, payload_json)
-                        result = payload
+                        verified = True
+                    else:
+                        self.log.debug(f"No public key found for sender '{sender}' — cannot verify.")
         except Exception as e:
             self.log.debug(f"Envelope verification failed: {e}")
+            verified = False
+        return payload, verified, is_signed
+
+    def _verify_envelope(self, envelope_str):
+        """Legacy helper: returns the payload dict on successful verification, else None."""
+        payload, verified, _ = self._try_verify_envelope(envelope_str)
+        result = payload if verified else None
+        return result
+
+    def _prepare_peer_message(self, payload):
+        """Serialize a command for a peer, signing it when this bot has a key."""
+        if self._has_signing_capability():
+            result = self._sign_envelope(payload)
+        else:
+            result = self.prepare_message(**payload)
         return result
 
     def activate(self):
@@ -413,12 +453,13 @@ class ErrForward(BotPlugin):
                         continue
 
                     new_cmd = start + cmd
-                    msg_j = self.prepare_message(
-                        mess=msg.get('mess'),
-                        typ='Cmd',
-                        cmd=new_cmd,
-                        args=msg.get('args', ''),
-                    )
+                    payload = {
+                        'typ': 'Cmd',
+                        'cmd': new_cmd,
+                        'args': msg.get('args', ''),
+                        'frm': str(getattr(msg.get('mess'), 'frm', '')),
+                    }
+                    msg_j = self._prepare_peer_message(payload)
                     self.sc.publishPost(msg_j, '', chan)
                 except Exception as e:
                     self.log.error(f"Failed to broadcast to bot {bot}: {e}")
@@ -636,33 +677,34 @@ class ErrForward(BotPlugin):
             self.log.error(f"Failed to fetch posts: {e}")
             posts = []
 
-        require_sig = self.config.get('require_signature', False) if self.config else False
-
         for msg in posts:
             raw_text = msg.get('text') if isinstance(msg, dict) else None
-            verified = None
+            payload = None
+            verified = False
+            is_signed = False
             if raw_text:
-                verified = self._verify_envelope(raw_text)
+                payload, verified, is_signed = self._try_verify_envelope(raw_text)
 
             msg_e = None
-            if verified is not None:
+            if verified:
                 # Envelope signature verified
-                if verified.get('typ') == 'KeyAnnounce':
-                    sender = verified.get('sender')
-                    pubkey = verified.get('pubkey')
+                if payload.get('typ') == 'KeyAnnounce':
+                    sender = payload.get('sender')
+                    pubkey = payload.get('pubkey')
                     if sender and pubkey:
                         keys = self._load_peer_keys()
                         keys[sender] = pubkey
                         self._save_peer_keys(keys)
                         self.log.info(f"Stored peer public key for {sender}")
                     continue  # Key announcement handled
-                msg_e = verified
+                msg_e = payload
+            elif is_signed and self._has_signing_capability():
+                # A signed peer is expected to authenticate when we can too.
+                self.log.warning("Dropping unverifiable signed message")
+                continue
             else:
-                # Unverified message
-                if require_sig:
-                    self.log.warning("Dropping unverifiable message (require_signature is True)")
-                    continue
-                msg_e = self.extract_args(msg)
+                # Legacy/unsigned peers cannot authenticate; interpret their message.
+                msg_e = payload or self.extract_args(msg)
 
             if isinstance(msg_e, dict):
                 msg_type = msg_e.get('typ') or msg_e.get('type')
@@ -709,12 +751,13 @@ class ErrForward(BotPlugin):
                     self.log.info(f"End forward broadcast for {mess}")
                     result = f"Broadcasted '{new_cmd}' to all bots on channel {chan}."
                 else:
-                    msg_e = self.prepare_message(
-                        mess=mess,
-                        typ='Cmd',
-                        cmd=cmd,
-                        args=new_args,
-                    )
+                    payload = {
+                        'typ': 'Cmd',
+                        'cmd': cmd,
+                        'args': new_args,
+                        'frm': str(getattr(mess, 'frm', '')),
+                    }
+                    msg_e = self._prepare_peer_message(payload)
                     try:
                         self.sc.publishPost(msg_e, '', chan)
                         self.log.info(f"End forward {mess}")
