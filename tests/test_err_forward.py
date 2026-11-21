@@ -1,8 +1,12 @@
+import base64
 import json
+import os
+import tempfile
 import unittest
 import urllib.parse
 from unittest.mock import MagicMock, patch
 
+from cryptography.hazmat.primitives import serialization
 from errbot.backends.base import Message, Identifier
 from errForward import ErrForward
 
@@ -54,6 +58,40 @@ class TestErrForward(unittest.TestCase):
         self.assertEqual(data['typ'], 'Cmd')
         self.assertEqual(data['cmd'], '!status')
         self.assertEqual(data['args'], 'arg1%20arg2')
+
+    def test_signed_message_keeps_command_fields_top_level(self):
+        with tempfile.TemporaryDirectory() as directory:
+            key_path = os.path.join(directory, 'bot1_key.pem')
+            self.plugin.config.update({'bot_id': 'bot1', 'priv_key_path': key_path})
+            private_key = self.plugin._load_private_key()
+            public_key = private_key.public_key().public_bytes(
+                encoding=serialization.Encoding.Raw,
+                format=serialization.PublicFormat.Raw,
+            )
+
+            signed = json.loads(self.plugin._sign_envelope({
+                'typ': 'Cmd',
+                'cmd': ',list',
+                'args': 'c0',
+                'frm': '@alice:test.org',
+            }))
+
+            self.assertEqual(signed['typ'], 'Cmd')
+            self.assertEqual(signed['cmd'], ',list')
+            self.assertNotIn('payload', signed)
+            self.assertIn('sig', signed)
+            self.plugin._load_peer_keys = MagicMock(return_value={
+                'bot1': base64.b64encode(public_key).decode('ascii'),
+            })
+
+            payload, verified, is_signed = self.plugin._try_verify_envelope(
+                json.dumps(signed)
+            )
+
+            self.assertTrue(is_signed)
+            self.assertTrue(verified)
+            self.assertEqual(payload['args'], 'c0')
+            self.assertEqual(self.plugin.extractArgs({'text': json.dumps(signed)})['cmd'], ',list')
 
     def test_extract_args_valid_and_unquotes(self):
         raw_payload = json.dumps({
@@ -202,9 +240,9 @@ class TestErrForward(unittest.TestCase):
         res = self.plugin.forwardCommand(msg, '*status')
         self.assertIn("Broadcasted 'status'", res)
 
-    def test_list_b_without_end_artifact(self):
+    def test_errforward_listb_without_end_artifact(self):
         self.plugin.sc.getBots.return_value = ['bot1', 'bot2']
-        res = self.plugin.listB(None, None)
+        res = self.plugin.errforward_listb(None, None)
         self.assertEqual(res, {'text': ['bot1', 'bot2']})
 
     def test_manage_posts_safely_handles_exceptions(self):

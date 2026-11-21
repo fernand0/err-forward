@@ -115,23 +115,20 @@ class ErrForward(BotPlugin):
         return None
 
     def _sign_envelope(self, payload_dict):
-        """Sign a JSON payload dict and return an envelope string.
-        The envelope format includes version, timestamp, type, sender, payload, and signature.
-        """
+        """Sign a message dict while keeping its command fields top-level."""
         private_key = self._load_private_key()
-        payload_json = json.dumps(payload_dict, sort_keys=True).encode('utf-8')
-        signature = private_key.sign(payload_json)
         bot_id = (self.config.get('bot_id') if self.config else None) or self.user_name or 'bot1'
         uptime = int(self._bot.get_uptime()) if hasattr(self._bot, 'get_uptime') else 0
-        envelope = {
+        message = dict(payload_dict)
+        message.update({
             "ver": 1,
             "ts": uptime,
-            "type": payload_dict.get('typ') or payload_dict.get('type'),
             "sender": bot_id,
-            "payload": payload_dict,
-            "sig": base64.b64encode(signature).decode('utf-8'),
-        }
-        return json.dumps(envelope)
+        })
+        payload_json = json.dumps(message, sort_keys=True).encode('utf-8')
+        signature = private_key.sign(payload_json)
+        message["sig"] = base64.b64encode(signature).decode('utf-8')
+        return json.dumps(message)
 
     def _has_signing_capability(self):
         """Return True if this bot can sign (private key is available/loadable)."""
@@ -160,11 +157,20 @@ class ErrForward(BotPlugin):
         is_signed = False
         try:
             envelope = json.loads(envelope_str) if isinstance(envelope_str, str) else envelope_str
-            if isinstance(envelope, dict) and 'sig' in envelope and 'payload' in envelope:
+            if isinstance(envelope, dict) and 'sig' in envelope:
                 is_signed = True
                 sig_b64 = envelope.get('sig')
-                sender = envelope.get('sender')
-                payload = envelope.get('payload')
+                if 'payload' in envelope:
+                    # Accept the previous nested-envelope format.
+                    sender = envelope.get('sender')
+                    payload = envelope.get('payload')
+                    signed_message = payload
+                else:
+                    # Signed command fields remain top-level for legacy bots.
+                    sender = envelope.get('sender')
+                    payload = dict(envelope)
+                    payload.pop('sig', None)
+                    signed_message = payload
                 if payload and sig_b64 and sender:
                     peer_keys = self._load_peer_keys()
                     pub_b64 = peer_keys.get(sender)
@@ -173,7 +179,7 @@ class ErrForward(BotPlugin):
                     if pub_b64:
                         pub_bytes = base64.b64decode(pub_b64)
                         public_key = ed25519.Ed25519PublicKey.from_public_bytes(pub_bytes)
-                        payload_json = json.dumps(payload, sort_keys=True).encode('utf-8')
+                        payload_json = json.dumps(signed_message, sort_keys=True).encode('utf-8')
                         signature = base64.b64decode(sig_b64)
                         public_key.verify(signature, payload_json)
                         verified = True
@@ -807,4 +813,4 @@ class ErrForward(BotPlugin):
     managePosts = manage_posts
     forwardCommand = forward_command
     getMyIP = get_my_ip
-    listB = list_bots_cmd
+    errforward_listb = list_bots_cmd
