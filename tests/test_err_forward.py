@@ -234,6 +234,9 @@ class TestErrForward(unittest.TestCase):
         res = self.plugin.forwardCommand(msg, '!status')
         self.assertIn("Forwarded '!status'", res)
         self.plugin.sc.publishPost.assert_called()
+        forwarded = json.loads(self.plugin.sc.publishPost.call_args.args[0])
+        self.assertEqual(forwarded['userName'], 'testuser')
+        self.assertEqual(forwarded['userHost'], 'testhost')
 
         # Broadcast with *
         self.plugin.sc.getBots.return_value = ['2026-11-13 [!] 127.0.0.1 bot1']

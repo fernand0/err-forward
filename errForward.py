@@ -464,6 +464,8 @@ class ErrForward(BotPlugin):
                         'cmd': new_cmd,
                         'args': msg.get('args', ''),
                         'frm': str(getattr(msg.get('mess'), 'frm', '')),
+                        'userName': self.user_name or '',
+                        'userHost': self.user_host or '',
                     }
                     msg_j = self._prepare_peer_message(payload)
                     self.sc.publishPost(msg_j, '', chan)
@@ -762,6 +764,8 @@ class ErrForward(BotPlugin):
                         'cmd': cmd,
                         'args': new_args,
                         'frm': str(getattr(mess, 'frm', '')),
+                        'userName': self.user_name or '',
+                        'userHost': self.user_host or '',
                     }
                     msg_e = self._prepare_peer_message(payload)
                     try:
