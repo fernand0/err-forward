@@ -11,7 +11,110 @@ from errbot.backends.base import Message
 from errbot.templating import tenv
 
 
-# Mapping of social modules to their respective message ID fields
+
+# --- Added for Asymmetric Authentication ---
+import base64
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import ed25519
+from cryptography.hazmat.primitives import serialization
+import json
+
+# Path to store peer public keys
+PEER_KEYS_FILE = os.path.join(os.path.dirname(__file__), 'peer_keys.json')
+
+def _load_private_key(self):
+    """Load or generate an Ed25519 private key for this bot.
+    Returns the private key object.
+    """
+    priv_key_path = self.config.get('priv_key_path')
+    if priv_key_path and os.path.exists(priv_key_path):
+        with open(priv_key_path, 'rb') as f:
+            priv_bytes = f.read()
+            return serialization.load_pem_private_key(priv_bytes, password=None)
+    # Generate new key and store it
+    private_key = ed25519.Ed25519PrivateKey.generate()
+    if priv_key_path:
+        pem = private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption()
+        )
+        with open(priv_key_path, 'wb') as f:
+            f.write(pem)
+    return private_key
+
+def _load_peer_keys(self):
+    """Load known peer public keys from JSON file.
+    Returns a dict mapping bot_id to base64-encoded public key.
+    """
+    if os.path.exists(PEER_KEYS_FILE):
+        try:
+            with open(PEER_KEYS_FILE, 'r') as f:
+                return json.load(f)
+        except Exception:
+            self.log.warning("Failed to load peer_keys.json, starting fresh.")
+    return {}
+
+def _save_peer_keys(self, keys_dict):
+    """Persist peer public keys dict to JSON file."""
+    try:
+        with open(PEER_KEYS_FILE, 'w') as f:
+            json.dump(keys_dict, f, indent=2)
+    except Exception as e:
+        self.log.error(f"Failed to save peer keys: {e}")
+
+def _sign_envelope(self, payload_dict):
+    """Sign a JSON payload dict and return an envelope string.
+    The envelope format is:
+    {
+        "ver": 1,
+        "ts": <timestamp>,
+        "type": <payload type>,
+        "sender": <bot_id>,
+        "payload": <original dict>,
+        "sig": <base64 signature>
+    }
+    """
+    private_key = self._load_private_key()
+    payload_json = json.dumps(payload_dict, sort_keys=True).encode('utf-8')
+    signature = private_key.sign(payload_json)
+    envelope = {
+        "ver": 1,
+        "ts": int(self._bot.get_uptime()),
+        "type": payload_dict.get('typ') or payload_dict.get('type'),
+        "sender": self.config.get('bot_id', 'bot1'),
+        "payload": payload_dict,
+        "sig": base64.b64encode(signature).decode('utf-8'),
+    }
+    return json.dumps(envelope)
+
+def _verify_envelope(self, envelope_str):
+    """Verify a signed envelope string.
+    Returns the inner payload dict if verification succeeds, else None.
+    """
+    try:
+        envelope = json.loads(envelope_str)
+        payload = envelope.get('payload')
+        sig_b64 = envelope.get('sig')
+        sender = envelope.get('sender')
+        if not (payload and sig_b64 and sender):
+            return None
+        peer_keys = self._load_peer_keys()
+        pub_b64 = peer_keys.get(sender)
+        if not pub_b64:
+            return None
+        pub_bytes = base64.b64decode(pub_b64)
+        public_key = ed25519.Ed25519PublicKey.from_public_bytes(pub_bytes)
+        payload_json = json.dumps(payload, sort_keys=True).encode('utf-8')
+        signature = base64.b64decode(sig_b64)
+        public_key.verify(signature, payload_json)
+        return payload
+    except Exception as e:
+        self.log.debug(f"Envelope verification failed: {e}")
+        return None
+
+# --- End of Added Code ---
+
 MODULE_ID_MAP = {
     'moduleSlack': 'ts',
     'moduleGitter': 'id',
@@ -32,7 +135,84 @@ class ErrForward(BotPlugin):
     sc = None
     id_post = 'ts'
     idPost = 'ts'
-    user_name = None
+    def _load_private_key(self):
+        """Load or generate an Ed25519 private key for this bot.
+        Returns the private key object.
+        """
+        priv_key_path = self.config.get('priv_key_path')
+        if priv_key_path and os.path.exists(priv_key_path):
+            with open(priv_key_path, 'rb') as f:
+                priv_bytes = f.read()
+                return serialization.load_pem_private_key(priv_bytes, password=None)
+        # Generate new key and store it
+        private_key = ed25519.Ed25519PrivateKey.generate()
+        if priv_key_path:
+            pem = private_key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.PKCS8,
+                encryption_algorithm=serialization.NoEncryption()
+            )
+            with open(priv_key_path, 'wb') as f:
+                f.write(pem)
+        return private_key
+    def _load_peer_keys(self):
+        """Load known peer public keys from JSON file.
+        Returns a dict mapping bot_id to base64-encoded public key.
+        """
+        if os.path.exists(PEER_KEYS_FILE):
+            try:
+                with open(PEER_KEYS_FILE, 'r') as f:
+                    return json.load(f)
+            except Exception:
+                self.log.warning("Failed to load peer_keys.json, starting fresh.")
+        return {}
+    def _save_peer_keys(self, keys_dict):
+        """Persist peer public keys dict to JSON file."""
+        try:
+            with open(PEER_KEYS_FILE, 'w') as f:
+                json.dump(keys_dict, f, indent=2)
+        except Exception as e:
+            self.log.error(f"Failed to save peer keys: {e}")
+    def _sign_envelope(self, payload_dict):
+        """Sign a JSON payload dict and return an envelope string.
+        The envelope format includes version, timestamp, type, sender, payload, and signature.
+        """
+        private_key = self._load_private_key()
+        payload_json = json.dumps(payload_dict, sort_keys=True).encode('utf-8')
+        signature = private_key.sign(payload_json)
+        envelope = {
+            "ver": 1,
+            "ts": int(self._bot.get_uptime()),
+            "type": payload_dict.get('typ') or payload_dict.get('type'),
+            "sender": self.config.get('bot_id', 'bot1'),
+            "payload": payload_dict,
+            "sig": base64.b64encode(signature).decode('utf-8'),
+        }
+        return json.dumps(envelope)
+    def _verify_envelope(self, envelope_str):
+        """Verify a signed envelope string.
+        Returns the inner payload dict if verification succeeds, else None.
+        """
+        try:
+            envelope = json.loads(envelope_str)
+            payload = envelope.get('payload')
+            sig_b64 = envelope.get('sig')
+            sender = envelope.get('sender')
+            if not (payload and sig_b64 and sender):
+                return None
+            peer_keys = self._load_peer_keys()
+            pub_b64 = peer_keys.get(sender)
+            if not pub_b64:
+                return None
+            pub_bytes = base64.b64decode(pub_b64)
+            public_key = ed25519.Ed25519PublicKey.from_public_bytes(pub_bytes)
+            payload_json = json.dumps(payload, sort_keys=True).encode('utf-8')
+            signature = base64.b64decode(sig_b64)
+            public_key.verify(signature, payload_json)
+            return payload
+        except Exception as e:
+            self.log.debug(f"Envelope verification failed: {e}")
+            return None
     user_host = None
 
     def activate(self):
@@ -94,11 +274,79 @@ class ErrForward(BotPlugin):
         except Exception as e:
             self.log.error(f"Failed to publish activation message: {e}")
 
+
+        # Load or generate private key
+        private_key = self._load_private_key()
+        # Publish a signed activation message
+        # Build a simple payload for activation (same as before) but will be signed
+        activation_payload = {
+            'typ': 'Msg',
+            'userName': self.user_name,
+            'userHost': self.user_host,
+            'frm': '',
+            'cmd': '',
+            'args': ''
+        }
+        # Use existing msg_j as base payload (we'll replace with signed envelope)
+        signed_msg = self._sign_envelope(activation_payload)
+        try:
+            self.sc.publishPost(signed_msg, '', self.sc.getChannel())
+        except Exception as e:
+            self.log.error(f"Failed to publish signed activation message: {e}")
+
+        # Announce our public key to peers
+        pub_key = private_key.public_key()
+        pub_bytes = pub_key.public_bytes(
+            encoding=serialization.Encoding.Raw,
+            format=serialization.PublicFormat.Raw
+        )
+        pub_b64 = base64.b64encode(pub_bytes).decode('utf-8')
+        key_payload = {
+            'typ': 'KeyAnnounce',
+            'sender': self.config.get('bot_id', 'bot1'),
+            'pubkey': pub_b64
+        }
+        signed_key_announce = self._sign_envelope(key_payload)
+        try:
+            self.sc.publishPost(signed_key_announce, '', self.sc.getChannel())
+        except Exception as e:
+            self.log.error(f"Failed to publish key announcement: {e}")
+
         self.start_poller(60, self.manage_posts)
         self.log.info("ErrForward has been activated")
         self.log.info(f"chanAct {self.sc.getChannel()}")
+        return
 
-    def get_configuration_template(self):
+        self.log.info("ErrForward has been activated")
+        self.log.info(f"chanAct {self.sc.getChannel()}")
+
+                     return {
+            'channel': "general",
+            'module': "moduleSlack",
+            'user_name': "",  # Defaults to system user
+            'user_host': "",  # Defaults to system host
+            'id_post_override': "",
++            'priv_key_path': "",  # Path to store private key PEM
++            'bot_id': "bot1",  # Identifier used in key announcements
+        }(self):
+        return {
+            'channel': "general",
+            'module': "moduleSlack",
+            'user_name': "",  # Defaults to system user
+            'user_host': "",  # Defaults to system host
+            'id_post_override': "",
+            'priv_key_path': "",  # Path to store private key PEM (optional)
+            'bot_id': "bot1",  # Identifier used in key announcements
+        }(self):
+         return {
+             'channel': "general",
+             'module': "moduleSlack",
+             'user_name': "",  # Defaults to system user
+             'user_host': "",  # Defaults to system host
+             'id_post_override': "",
++            'priv_key_path': "",  # Path to PEM private key, generated if missing
++            'bot_id': "bot1",  # Identifier used in signed envelopes
+         }
         return {
             'channel': "general",
             'module': "moduleSlack",
@@ -440,7 +688,58 @@ class ErrForward(BotPlugin):
                 self.log.warning(f"No recipient found for reply: {replies}")
 
     def manage_posts(self):
-        # chan = self._get_channel()
+    
+    self.log.info(f"Start manage posts")
+    if not hasattr(self, 'sc'):
+        return
+    # chan = self.sc.getChannel()
+    # self.log.info(f"Start manage posts in chan  {chan}")
+
+    # if not chan:
+    #     return
+
+    try:
+        self.sc.setPosts()
+        posts = self.sc.getPosts() or []
+    except Exception as e:
+        self.log.error(f"Failed to fetch posts: {e}")
+        return
+
+    for msg in posts:
+        msg_e = self.extract_args(msg)
+        # Safe check for dictionary and type key
+        if isinstance(msg_e, dict):
+            # If this is a signed envelope, verify it first
+            if 'payload' in msg_e:
+                verified = self._verify_envelope(json.dumps(msg_e))
+                if not verified:
+                    self.log.warning("Dropping unverifiable message")
+                    continue
+                # Handle key announcement specially
+                if verified.get('typ') == 'KeyAnnounce':
+                    sender = verified.get('sender')
+                    pubkey = verified.get('pubkey')
+                    if sender and pubkey:
+                        keys = self._load_peer_keys()
+                        keys[sender] = pubkey
+                        self._save_peer_keys(keys)
+                        self.log.info(f"Stored peer public key for {sender}")
+                    continue  # No further processing needed
+                # Replace msg_e with the inner payload for normal handling
+                msg_e = verified
+
+            msg_type = msg_e.get('typ') or msg_e.get('type')
+            if msg_type == 'Cmd':
+                try:
+                    self.manage_command(msg_e, msg)
+                except Exception as e:
+                    self.log.exception(f"Error handling Cmd post: {e}")
+            elif msg_type == 'Rep':
+                try:
+                    self.manage_reply(msg_e, msg)
+                except Exception as e:
+                    self.log.exception(f"Error handling Rep post: {e}")
+        
         self.log.info(f"Start manage posts")
         if not hasattr(self, 'sc'):
             return
@@ -458,6 +757,37 @@ class ErrForward(BotPlugin):
             return
 
         for msg in posts:
+            # Extract raw JSON text
+            raw_text = msg.get('text') if isinstance(msg, dict) else None
+            # First try to verify as signed envelope
+            payload = None
+            if raw_text:
+                verified = self._verify_envelope(raw_text)
+                if verified is not None:
+                    payload = verified
+                    # Handle key announcement
+                    if payload.get('typ') == 'KeyAnnounce' and 'pubkey' in payload:
+                        peer_keys = self._load_peer_keys()
+                        sender_id = payload.get('sender')
+                        peer_keys[sender_id] = payload['pubkey']
+                        self._save_peer_keys(peer_keys)
+                        self.log.info(f"Stored public key for peer {sender_id}")
+                        continue  # No further processing needed for key announce
+            # If not a verified envelope, fall back to normal extraction
+            msg_e = self.extract_args(msg) if payload is None else payload
+            # Safe check for dictionary and type key
+            if isinstance(msg_e, dict):
+                msg_type = msg_e.get('typ') or msg_e.get('type')
+                if msg_type == 'Cmd':
+                    try:
+                        self.manage_command(msg_e, msg)
+                    except Exception as e:
+                        self.log.exception(f"Error handling Cmd post: {e}")
+                elif msg_type == 'Rep':
+                    try:
+                        self.manage_reply(msg_e, msg)
+                    except Exception as e:
+                        self.log.exception(f"Error handling Rep post: {e}")
             msg_e = self.extract_args(msg)
             # Safe check for dictionary and type key
             if isinstance(msg_e, dict):
@@ -476,7 +806,7 @@ class ErrForward(BotPlugin):
     def forward_command(self, mess, args):
         sender = getattr(mess, 'frm', 'unknown')
         self.log.info(f"Begin forward {mess} from {sender}")
-        # chan = self._get_channel()
+        
         # chan = self.sc.getChannel()
         if not hasattr(self, 'sc') or not self.sc:
             return "ErrForward is not configured. Please configure the plugin first."
