@@ -160,7 +160,7 @@ class ErrForward(BotPlugin):
             if isinstance(envelope, dict) and 'sig' in envelope:
                 is_signed = True
                 sig_b64 = envelope.get('sig')
-                if 'payload' in envelope:
+                if 'payload' in envelope and isinstance(envelope.get('payload'), dict) and 'ver' in envelope:
                     # Accept the previous nested-envelope format.
                     sender = envelope.get('sender')
                     payload = envelope.get('payload')
@@ -173,9 +173,10 @@ class ErrForward(BotPlugin):
                     signed_message = payload
                 if payload and sig_b64 and sender:
                     peer_keys = self._load_peer_keys()
-                    pub_b64 = peer_keys.get(sender)
-                    if not pub_b64 and payload.get('typ') == 'KeyAnnounce':
+                    if payload.get('typ') == 'KeyAnnounce' and payload.get('pubkey'):
                         pub_b64 = payload.get('pubkey')
+                    else:
+                        pub_b64 = peer_keys.get(sender)
                     if pub_b64:
                         pub_bytes = base64.b64decode(pub_b64)
                         public_key = ed25519.Ed25519PublicKey.from_public_bytes(pub_bytes)
@@ -186,7 +187,7 @@ class ErrForward(BotPlugin):
                     else:
                         self.log.debug(f"No public key found for sender '{sender}' — cannot verify.")
         except Exception as e:
-            self.log.debug(f"Envelope verification failed: {e}")
+            self.log.debug(f"Envelope verification failed: {type(e).__name__} ({e})")
             verified = False
         return payload, verified, is_signed
 

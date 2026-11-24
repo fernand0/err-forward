@@ -93,6 +93,92 @@ class TestErrForward(unittest.TestCase):
             self.assertEqual(payload['args'], 'c0')
             self.assertEqual(self.plugin.extractArgs({'text': json.dumps(signed)})['cmd'], ',list')
 
+    def test_key_announce_verifies_with_announced_key_even_if_stale_key_in_peer_keys(self):
+        # Stale key in peer_keys for sender 'bot1'
+        stale_priv = serialization.load_pem_private_key(
+            self.plugin._load_private_key().private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.PKCS8,
+                encryption_algorithm=serialization.NoEncryption(),
+            ),
+            password=None,
+        )
+        stale_pub = base64.b64encode(stale_priv.public_key().public_bytes(
+            encoding=serialization.Encoding.Raw,
+            format=serialization.PublicFormat.Raw,
+        )).decode('ascii')
+        self.plugin._load_peer_keys = MagicMock(return_value={'bot1': stale_pub})
+
+        # Sender bot1 rotated its key and sends a KeyAnnounce signed with its new key
+        new_priv = serialization.load_pem_private_key(
+            serialization.load_pem_private_key(
+                stale_priv.private_bytes(
+                    encoding=serialization.Encoding.PEM,
+                    format=serialization.PrivateFormat.PKCS8,
+                    encryption_algorithm=serialization.NoEncryption(),
+                ),
+                password=None,
+            ).private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.PKCS8,
+                encryption_algorithm=serialization.NoEncryption(),
+            ),
+            password=None,
+        )
+        from cryptography.hazmat.primitives.asymmetric import ed25519
+        rotated_priv = ed25519.Ed25519PrivateKey.generate()
+        rotated_pub = base64.b64encode(rotated_priv.public_key().public_bytes(
+            encoding=serialization.Encoding.Raw,
+            format=serialization.PublicFormat.Raw,
+        )).decode('ascii')
+
+        key_announce_payload = {
+            'typ': 'KeyAnnounce',
+            'sender': 'bot1',
+            'pubkey': rotated_pub,
+            'ver': 1,
+            'ts': 1234,
+        }
+        msg_bytes = json.dumps(key_announce_payload, sort_keys=True).encode('utf-8')
+        sig = base64.b64encode(rotated_priv.sign(msg_bytes)).decode('ascii')
+        signed_announce = dict(key_announce_payload)
+        signed_announce['sig'] = sig
+
+        payload, verified, is_signed = self.plugin._try_verify_envelope(
+            json.dumps(signed_announce)
+        )
+        self.assertTrue(is_signed)
+        self.assertTrue(verified)
+        self.assertEqual(payload['pubkey'], rotated_pub)
+
+    def test_top_level_message_with_payload_field_not_confused_with_nested_envelope(self):
+        with tempfile.TemporaryDirectory() as directory:
+            key_path = os.path.join(directory, 'bot1_key.pem')
+            self.plugin.config.update({'bot_id': 'bot1', 'priv_key_path': key_path})
+            private_key = self.plugin._load_private_key()
+            public_key = private_key.public_key().public_bytes(
+                encoding=serialization.Encoding.Raw,
+                format=serialization.PublicFormat.Raw,
+            )
+            self.plugin._load_peer_keys = MagicMock(return_value={
+                'bot1': base64.b64encode(public_key).decode('ascii'),
+            })
+
+            # Top-level message with an argument/key named 'payload' that is a string
+            signed = json.loads(self.plugin._sign_envelope({
+                'typ': 'Cmd',
+                'cmd': '!custom',
+                'payload': 'some_argument_data',
+                'args': 'extra',
+            }))
+
+            payload, verified, is_signed = self.plugin._try_verify_envelope(
+                json.dumps(signed)
+            )
+            self.assertTrue(is_signed)
+            self.assertTrue(verified)
+            self.assertEqual(payload['payload'], 'some_argument_data')
+
     def test_extract_args_valid_and_unquotes(self):
         raw_payload = json.dumps({
             'typ': 'Cmd',
