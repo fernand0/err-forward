@@ -753,18 +753,22 @@ class ErrForward(BotPlugin):
                 # Legacy/unsigned peers cannot authenticate; interpret their message.
                 msg_e = payload or self.extract_args(msg)
 
-            if isinstance(msg_e, dict):
-                msg_type = msg_e.get('typ') or msg_e.get('type')
-                if msg_type == 'Cmd':
-                    try:
-                        self.manage_command(msg_e, msg)
-                    except Exception as e:
-                        self.log.exception(f"Error handling Cmd post: {e}")
-                elif msg_type == 'Rep':
-                    try:
-                        self.manage_reply(msg_e, msg)
-                    except Exception as e:
-                        self.log.exception(f"Error handling Rep post: {e}")
+            # Normalize userHost in the payload to strip Slack markup
+            if isinstance(msg_e, dict) and msg_e.get('userHost'):
+                msg_e['userHost'] = self._normalize_user_host(msg_e['userHost'])
+
+            # Determine message type and dispatch
+            msg_type = msg_e.get('typ') or msg_e.get('type')
+            if msg_type == 'Cmd':
+                try:
+                    self.manage_command(msg_e, msg)
+                except Exception as e:
+                    self.log.exception(f"Error handling Cmd post: {e}")
+            elif msg_type == 'Rep':
+                try:
+                    self.manage_reply(msg_e, msg)
+                except Exception as e:
+                    self.log.exception(f"Error handling Rep post: {e}")
         return None
 
     def forward_command(self, mess, args):
