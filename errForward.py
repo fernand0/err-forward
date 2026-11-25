@@ -180,7 +180,7 @@ class ErrForward(BotPlugin):
                 self.log.debug(f"Signature: {sig_b64}")
                 if 'payload' in envelope and isinstance(envelope.get('payload'), dict) and 'ver' in envelope:
                     # Accept the previous nested-envelope format.
-                    sender = envelope.get('sender')
+                    sender = self._normalize_sender(envelope.get('sender') or '')
                     payload = envelope.get('payload')
                     # Normalize userHost if present
                     if isinstance(payload, dict) and payload.get('userHost'):
@@ -188,7 +188,7 @@ class ErrForward(BotPlugin):
                     signed_message = payload
                 else:
                     # Signed command fields remain top-level for legacy bots.
-                    sender = envelope.get('sender')
+                    sender = self._normalize_sender(envelope.get('sender') or '')
                     payload = dict(envelope)
                     payload.pop('sig', None)
                     # Normalize userHost if present
@@ -719,22 +719,36 @@ class ErrForward(BotPlugin):
         ``<http://elmundoesimperfecto.com|elmundoesimperfecto.com>``.
         For signature consistency we want the raw host string.
         """
-        if not host:
-            # Fallback to the bot's configured host if the incoming value is empty
-            return self.user_host or os.uname()[1]
-        # Remove surrounding angle brackets
-        if host.startswith('<') and host.endswith('>'):
-            host = host[1:-1]
-        # Slack format ``url|display`` – keep the display part if present
-        if '|' in host:
-            _, display = host.split('|', 1)
-            host = display
-        # Strip protocol prefixes
-        if host.startswith('http://'):
-            host = host[len('http://'):]
-        if host.startswith('https://'):
-            host = host[len('https://'):]
-        return host
+        result = host
+        if not result:
+            result = self.user_host or os.uname()[1]
+        else:
+            # Remove surrounding angle brackets
+            if result.startswith('<') and result.endswith('>'):
+                result = result[1:-1]
+            # Slack format ``url|display`` – keep the display part if present
+            if '|' in result:
+                _, display = result.split('|', 1)
+                result = display
+            # Strip protocol prefixes
+            if result.startswith('http://'):
+                result = result[len('http://'):]
+            if result.startswith('https://'):
+                result = result[len('https://'):]
+        return result
+
+    def _normalize_sender(self, sender: str) -> str:
+        """Strip Slack markup from a sender field.
+        When the sender uses the ``username::userhost`` format, the host
+        portion may be auto-linked by Slack, e.g.
+        ``ftricas::<http://elmundoesimperfecto.com|elmundoesimperfecto.com>``.
+        This normalizes only the host portion using ``_normalize_user_host``.
+        """
+        result = sender or ''
+        if '::' in result:
+            user_part, host_part = result.split('::', 1)
+            result = f"{user_part}::{self._normalize_user_host(host_part)}"
+        return result
 
     def manage_posts(self):
         self.log.info("Start manage posts")

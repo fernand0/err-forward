@@ -513,6 +513,20 @@ class TestErrForward(unittest.TestCase):
         self.plugin.user_name = None
         self.assertEqual(self.plugin._get_bot_id(), 'bot1')
 
+    def test_normalize_sender(self):
+        normalize = self.plugin._normalize_sender
+        # Plain sender unchanged
+        self.assertEqual(normalize('ftricas::raspberrypi'), 'ftricas::raspberrypi')
+        # Slack-mangled host portion in bot_id
+        self.assertEqual(
+            normalize('ftricas::<http://elmundoesimperfecto.com|elmundoesimperfecto.com>'),
+            'ftricas::elmundoesimperfecto.com'
+        )
+        # No :: separator – returned as-is
+        self.assertEqual(normalize('ftricas'), 'ftricas')
+        # Empty string
+        self.assertEqual(normalize(''), '')
+
 
 if __name__ == '__main__':
     unittest.main()
