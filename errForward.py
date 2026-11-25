@@ -1,7 +1,8 @@
 import base64
 import importlib
 import inspect
-import json
+import re
+
 import os
 import pwd
 import socket
@@ -407,7 +408,7 @@ class ErrForward(BotPlugin):
 
         msg = {
             'userName': usr or self.user_name or pwd.getpwuid(os.getuid())[0],
-            'userHost': host or self.user_host or os.uname()[1],
+            'userHost': self._normalize_user_host(host or self.user_host or os.uname()[1]),
             'frm': str(frm) if frm else '',
             'typ': typ,
             'cmd': cmd,
@@ -683,7 +684,27 @@ class ErrForward(BotPlugin):
                     self.log.warning(f"No recipient found for reply: {replies}")
         return None
 
-    def manage_posts(self):
+    def _normalize_user_host(self, host: str) -> str:
+        """Strip Slack link markup from a userHost value.
+        Slack may turn a plain URL like ``elmundoesimperfecto.com`` into
+        ``<http://elmundoesimperfecto.com|elmundoesimperfecto.com>``.
+        For signature consistency we want the raw host string.
+        """
+        if not host:
+            return host
+        # Remove surrounding angle brackets
+        if host.startswith('<') and host.endswith('>'):
+            host = host[1:-1]
+        # Slack format ``url|display`` – keep the display part if present
+        if '|' in host:
+            _, display = host.split('|', 1)
+            host = display
+        # Strip protocol prefixes
+        if host.startswith('http://'):
+            host = host[len('http://') :]
+        if host.startswith('https://'):
+            host = host[len('https://') :]
+        return host
         self.log.info("Start manage posts")
         if not hasattr(self, 'sc') or not self.sc:
             return None
