@@ -182,8 +182,12 @@ class ErrForward(BotPlugin):
                         public_key = ed25519.Ed25519PublicKey.from_public_bytes(pub_bytes)
                         payload_json = json.dumps(signed_message, sort_keys=True).encode('utf-8')
                         signature = base64.b64decode(sig_b64)
-                        public_key.verify(signature, payload_json)
-                        verified = True
+                        try:
+                            public_key.verify(signature, payload_json)
+                            verified = True
+                        except Exception as verify_err:
+                            self.log.debug(f"Signature verification failed: {type(verify_err).__name__}: {verify_err}")
+                            verified = False
                     else:
                         self.log.debug(f"No public key found for sender '{sender}' — cannot verify.")
         except Exception as e:
@@ -557,7 +561,7 @@ class ErrForward(BotPlugin):
                     sender = None
 
                 body_text = f"{bot_prefix}{effective_cmd} {new_args}".strip() if new_args else f"{bot_prefix}{effective_cmd}"
-                new_msg = Message(frm=sender, body=body_text)
+                new_msg = Message(frm=sender, text=body_text)
                 if hasattr(new_msg, '__dict__'):
                     new_msg.text = body_text
 
@@ -652,22 +656,30 @@ class ErrForward(BotPlugin):
                 replies = urllib.parse.unquote(raw_args) if raw_args else ""
 
                 frm = msg_e.get('frm')
+                # Determine recipient identifier, with fallback to admin if needed
+                msg_to = None
                 if frm and frm != '-':
                     try:
                         msg_to = self._bot.build_identifier(frm)
                     except Exception:
                         msg_to = None
-                elif getattr(self._bot.bot_config, 'BOT_ADMINS', None):
-                    msg_to = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
-                else:
-                    msg_to = None
+                if not msg_to:
+                    admins = getattr(self._bot.bot_config, 'BOT_ADMINS', None)
+                    if admins:
+                        try:
+                            msg_to = self._bot.build_identifier(admins[0])
+                        except Exception:
+                            msg_to = None
 
                 # Safe markdown escaping without Python 3.12 syntax warning
                 replies = replies.replace('_', r'\_')
 
+                if not msg_to:
+                    # fallback to raw frm string if identifier missing
+                    msg_to = frm
                 if msg_to and replies:
                     self.send(msg_to, replies)
-                elif not msg_to:
+                else:
                     self.log.warning(f"No recipient found for reply: {replies}")
         return None
 
