@@ -691,7 +691,8 @@ class ErrForward(BotPlugin):
         For signature consistency we want the raw host string.
         """
         if not host:
-            return host
+            # Fallback to the bot's configured host if the incoming value is empty
+            return self.user_host or os.uname()[1]
         # Remove surrounding angle brackets
         if host.startswith('<') and host.endswith('>'):
             host = host[1:-1]
@@ -708,39 +709,8 @@ class ErrForward(BotPlugin):
 
     def manage_posts(self):
         self.log.info("Start manage posts")
-        if not hasattr(self, 'sc') or not self.sc:
-            return None
-        if not self.config and not self.channel:
-            return None
 
-        posts = []
-        try:
-            self.sc.setPosts()
-            posts = self.sc.getPosts() or []
-        except Exception as e:
-            self.log.error(f"Failed to fetch posts: {e}")
-            posts = []
-        """Strip Slack link markup from a userHost value.
-        Slack may turn a plain URL like ``elmundoesimperfecto.com`` into
-        ``<http://elmundoesimperfecto.com|elmundoesimperfecto.com>``.
-        For signature consistency we want the raw host string.
-        """
-        if not host:
-            return host
-        # Remove surrounding angle brackets
-        if host.startswith('<') and host.endswith('>'):
-            host = host[1:-1]
-        # Slack format ``url|display`` – keep the display part if present
-        if '|' in host:
-            _, display = host.split('|', 1)
-            host = display
-        # Strip protocol prefixes
-        if host.startswith('http://'):
-            host = host[len('http://') :]
-        if host.startswith('https://'):
-            host = host[len('https://') :]
-        return host
-        self.log.info("Start manage posts")
+        # Skip processing if plugin is not fully configured
         if not hasattr(self, 'sc') or not self.sc:
             return None
         if not self.config and not self.channel:
