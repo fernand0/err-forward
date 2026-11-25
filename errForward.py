@@ -120,6 +120,9 @@ class ErrForward(BotPlugin):
         private_key = self._load_private_key()
         bot_id = (self.config.get('bot_id') if self.config else None) or self.user_name or 'bot1'
         uptime = int(self._bot.get_uptime()) if hasattr(self._bot, 'get_uptime') else 0
+        # Ensure payload dict is normalized (userHost) before signing
+        if isinstance(payload_dict, dict) and payload_dict.get('userHost'):
+            payload_dict['userHost'] = self._normalize_user_host(payload_dict['userHost'])
         message = dict(payload_dict)
         message.update({
             "ver": 1,
