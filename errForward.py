@@ -117,6 +117,12 @@ class ErrForward(BotPlugin):
     def _sign_envelope(self, payload_dict):
         """Sign a message dict while keeping its command fields top-level."""
         private_key = self._load_private_key()
+        sender_pub = base64.b64encode(private_key.public_key().public_bytes(
+             encoding=serialization.Encoding.Raw,
+             format=serialization.PublicFormat.Raw
+        )).decode('ascii')
+        self.log.debug(f"Sender active public key: {sender_pub}")  # <--- ADD THIS
+        
         bot_id = (self.config.get('bot_id') if self.config else None) or self.user_name or 'bot1'
         uptime = int(self._bot.get_uptime()) if hasattr(self._bot, 'get_uptime') else 0
         message = dict(payload_dict)
@@ -126,8 +132,12 @@ class ErrForward(BotPlugin):
             "sender": bot_id,
         })
         payload_json = json.dumps(message, sort_keys=True).encode('utf-8')
+        self.log.debug(f"Payload signed: {payload_json}")
+
         signature = private_key.sign(payload_json)
         message["sig"] = base64.b64encode(signature).decode('utf-8')
+        self.log.debug(f"Sender sig: {message['sig']}")  # <--- HERE (or self.log.info(...))
+
         return json.dumps(message)
 
     def _has_signing_capability(self):
