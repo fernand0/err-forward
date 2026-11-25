@@ -165,12 +165,20 @@ class ErrForward(BotPlugin):
                     # Accept the previous nested-envelope format.
                     sender = envelope.get('sender')
                     payload = envelope.get('payload')
+                    # Normalize userHost if present
+                    if isinstance(payload, dict) and payload.get('userHost'):
+                        payload['userHost'] = self._normalize_user_host(payload['userHost'])
                     signed_message = payload
                 else:
                     # Signed command fields remain top-level for legacy bots.
                     sender = envelope.get('sender')
                     payload = dict(envelope)
                     payload.pop('sig', None)
+                    # Normalize userHost if present
+                    if isinstance(payload, dict) and payload.get('userHost'):
+                        payload['userHost'] = self._normalize_user_host(payload['userHost'])
+                    signed_message = payload
+
                     signed_message = payload
                 if payload and sig_b64 and sender:
                     peer_keys = self._load_peer_keys()
@@ -182,12 +190,14 @@ class ErrForward(BotPlugin):
                         pub_bytes = base64.b64decode(pub_b64)
                         public_key = ed25519.Ed25519PublicKey.from_public_bytes(pub_bytes)
                         payload_json = json.dumps(signed_message, sort_keys=True).encode('utf-8')
+                        self.log.debug(f"Payload json: {payload_json}")
                         signature = base64.b64decode(sig_b64)
                         try:
                             public_key.verify(signature, payload_json)
                             verified = True
                         except Exception as verify_err:
-                            self.log.debug(f"Signature verification failed: {type(verify_err).__name__}: {verify_err}")
+                            self.log.debug(f"Signature verification failed: {type(verify_err).__name__}: {verify_err} Payload signed: {payload_json}")
+
                             verified = False
                     else:
                         self.log.debug(f"No public key found for sender '{sender}' — cannot verify.")
