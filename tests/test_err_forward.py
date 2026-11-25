@@ -93,6 +93,40 @@ class TestErrForward(unittest.TestCase):
             self.assertEqual(payload['args'], 'c0')
             self.assertEqual(self.plugin.extractArgs({'text': json.dumps(signed)})['cmd'], ',list')
 
+    def test_slack_mangled_sender_in_bot_id_still_verifies(self):
+        """Slack may auto-link the host in sender e.g. ftricas::<http://host|host>.
+        Verification must still succeed after normalizing sender back to ftricas::host.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            key_path = os.path.join(directory, 'alice_key.pem')
+            self.plugin.config.update({'bot_id': 'alice::example.org', 'priv_key_path': key_path})
+            private_key = self.plugin._load_private_key()
+            public_key = private_key.public_key().public_bytes(
+                encoding=serialization.Encoding.Raw,
+                format=serialization.PublicFormat.Raw,
+            )
+            self.plugin._load_peer_keys = MagicMock(return_value={
+                'alice::example.org': base64.b64encode(public_key).decode('ascii'),
+            })
+
+            # Sign a message normally (sender = 'alice::example.org')
+            signed = json.loads(self.plugin._sign_envelope({
+                'typ': 'Cmd',
+                'cmd': ',list',
+                'args': '',
+                'frm': 'user',
+            }))
+            self.assertEqual(signed['sender'], 'alice::example.org')
+
+            # Simulate Slack mangling the host portion of sender
+            signed['sender'] = 'alice::<http://example.org|example.org>'
+            mangled_str = json.dumps(signed)
+
+            payload, verified, is_signed = self.plugin._try_verify_envelope(mangled_str)
+
+            self.assertTrue(is_signed)
+            self.assertTrue(verified)
+
     def test_key_announce_verifies_with_announced_key_even_if_stale_key_in_peer_keys(self):
         # Stale key in peer_keys for sender 'bot1'
         stale_priv = serialization.load_pem_private_key(
@@ -512,6 +546,20 @@ class TestErrForward(unittest.TestCase):
         # 4. Default fallback
         self.plugin.user_name = None
         self.assertEqual(self.plugin._get_bot_id(), 'bot1')
+
+    def test_normalize_sender(self):
+        normalize = self.plugin._normalize_sender
+        # Plain sender unchanged
+        self.assertEqual(normalize('ftricas::raspberrypi'), 'ftricas::raspberrypi')
+        # Slack-mangled host portion in bot_id
+        self.assertEqual(
+            normalize('ftricas::<http://elmundoesimperfecto.com|elmundoesimperfecto.com>'),
+            'ftricas::elmundoesimperfecto.com'
+        )
+        # No :: separator – returned as-is
+        self.assertEqual(normalize('ftricas'), 'ftricas')
+        # Empty string
+        self.assertEqual(normalize(''), '')
 
 
 if __name__ == '__main__':
