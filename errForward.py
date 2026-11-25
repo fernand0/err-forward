@@ -770,6 +770,7 @@ class ErrForward(BotPlugin):
                     if sender == self._get_bot_id():
                         self.log.debug("Skipping our own key announcement")
                         continue
+                    self.log.debug("Sender: {sender} PubKey: {pubkey}")
                     if sender and pubkey:
                         keys = self._load_peer_keys()
                         keys[sender] = pubkey
