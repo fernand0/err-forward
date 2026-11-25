@@ -503,7 +503,7 @@ class TestErrForward(unittest.TestCase):
         self.plugin.config = {}
         self.plugin.user_name = 'alice'
         self.plugin.user_host = 'example.org'
-        self.assertEqual(self.plugin._get_bot_id(), 'alice@example.org')
+        self.assertEqual(self.plugin._get_bot_id(), 'alice::example.org')
 
         # 3. user_name only
         self.plugin.user_host = None

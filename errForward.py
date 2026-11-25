@@ -47,12 +47,12 @@ class ErrForward(BotPlugin):
     user_host = None
 
     def _get_bot_id(self):
-        """Return configured bot_id or fallback to username@userhost."""
+        """Return configured bot_id or fallback to username::userhost."""
         bot_id = None
         if self.config and self.config.get('bot_id'):
             bot_id = self.config.get('bot_id')
         elif getattr(self, 'user_name', None) and getattr(self, 'user_host', None):
-            bot_id = f"{self.user_name}@{self.user_host}"
+            bot_id = f"{self.user_name}::{self.user_host}"
         elif getattr(self, 'user_name', None):
             bot_id = self.user_name
         else:
@@ -780,6 +780,7 @@ class ErrForward(BotPlugin):
                     if sender == self._get_bot_id():
                         self.log.debug("Skipping our own key announcement")
                         continue
+                    self.log.debug("Sender: {sender} PubKey: {pubkey}")
                     if sender and pubkey:
                         keys = self._load_peer_keys()
                         keys[sender] = pubkey
