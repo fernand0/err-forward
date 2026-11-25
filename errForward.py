@@ -46,6 +46,19 @@ class ErrForward(BotPlugin):
     user_name = None
     user_host = None
 
+    def _get_bot_id(self):
+        """Return configured bot_id or fallback to username@userhost."""
+        bot_id = None
+        if self.config and self.config.get('bot_id'):
+            bot_id = self.config.get('bot_id')
+        elif getattr(self, 'user_name', None) and getattr(self, 'user_host', None):
+            bot_id = f"{self.user_name}@{self.user_host}"
+        elif getattr(self, 'user_name', None):
+            bot_id = self.user_name
+        else:
+            bot_id = 'bot1'
+        return bot_id
+
     def _get_default_key_path(self):
         """Determine a sensible default path for the bot's private key.
         Prefers Errbot's BOT_DATA_DIR, then ~/.errbot, and falls back to the plugin dir.
@@ -118,7 +131,7 @@ class ErrForward(BotPlugin):
     def _sign_envelope(self, payload_dict):
         """Sign a message dict while keeping its command fields top-level."""
         private_key = self._load_private_key()
-        bot_id = (self.config.get('bot_id') if self.config else None) or self.user_name or 'bot1'
+        bot_id = self._get_bot_id()
         uptime = int(self._bot.get_uptime()) if hasattr(self._bot, 'get_uptime') else 0
         # Ensure payload dict is normalized (userHost) before signing
         if isinstance(payload_dict, dict) and payload_dict.get('userHost'):
@@ -309,7 +322,7 @@ class ErrForward(BotPlugin):
                 pub_b64 = base64.b64encode(pub_bytes).decode('utf-8')
                 key_payload = {
                     'typ': 'KeyAnnounce',
-                    'sender': (self.config.get('bot_id') if self.config else None) or self.user_name or 'bot1',
+                    'sender': self._get_bot_id(),
                     'pubkey': pub_b64
                 }
                 signed_key_announce = self._sign_envelope(key_payload)
@@ -646,7 +659,7 @@ class ErrForward(BotPlugin):
 
             target_name = msg_e.get('userName')
             target_host = msg_e.get('userHost')
-            legacy_bot_id = (self.config.get('bot_id') if self.config else None) or self.user_name or 'bot1'
+            legacy_bot_id = self._get_bot_id()
             is_current_target = (
                 target_name == self.user_name and target_host == self.user_host
             )
@@ -751,6 +764,9 @@ class ErrForward(BotPlugin):
                 if payload.get('typ') == 'KeyAnnounce':
                     sender = payload.get('sender')
                     pubkey = payload.get('pubkey')
+                    if sender == self._get_bot_id():
+                        self.log.debug("Skipping our own key announcement")
+                        continue
                     if sender and pubkey:
                         keys = self._load_peer_keys()
                         keys[sender] = pubkey
