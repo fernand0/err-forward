@@ -2,6 +2,7 @@ import base64
 import importlib
 import inspect
 import json
+
 import os
 import pwd
 import socket
@@ -44,6 +45,19 @@ class ErrForward(BotPlugin):
     idPost = 'ts'
     user_name = None
     user_host = None
+
+    def _get_bot_id(self):
+        """Return configured bot_id or fallback to username@userhost."""
+        bot_id = None
+        if self.config and self.config.get('bot_id'):
+            bot_id = self.config.get('bot_id')
+        elif getattr(self, 'user_name', None) and getattr(self, 'user_host', None):
+            bot_id = f"{self.user_name}@{self.user_host}"
+        elif getattr(self, 'user_name', None):
+            bot_id = self.user_name
+        else:
+            bot_id = 'bot1'
+        return bot_id
 
     def _get_default_key_path(self):
         """Determine a sensible default path for the bot's private key.
@@ -123,8 +137,11 @@ class ErrForward(BotPlugin):
         )).decode('ascii')
         self.log.debug(f"Sender active public key: {sender_pub}")  # <--- ADD THIS
         
-        bot_id = (self.config.get('bot_id') if self.config else None) or self.user_name or 'bot1'
+        bot_id = self._get_bot_id()
         uptime = int(self._bot.get_uptime()) if hasattr(self._bot, 'get_uptime') else 0
+        # Ensure payload dict is normalized (userHost) before signing
+        if isinstance(payload_dict, dict) and payload_dict.get('userHost'):
+            payload_dict['userHost'] = self._normalize_user_host(payload_dict['userHost'])
         message = dict(payload_dict)
         message.update({
             "ver": 1,
@@ -170,33 +187,51 @@ class ErrForward(BotPlugin):
             if isinstance(envelope, dict) and 'sig' in envelope:
                 is_signed = True
                 sig_b64 = envelope.get('sig')
-                if 'payload' in envelope:
+                self.log.debug(f"Signature: {sig_b64}")
+                if 'payload' in envelope and isinstance(envelope.get('payload'), dict) and 'ver' in envelope:
                     # Accept the previous nested-envelope format.
                     sender = envelope.get('sender')
                     payload = envelope.get('payload')
+                    # Normalize userHost if present
+                    if isinstance(payload, dict) and payload.get('userHost'):
+                        payload['userHost'] = self._normalize_user_host(payload['userHost'])
                     signed_message = payload
                 else:
                     # Signed command fields remain top-level for legacy bots.
                     sender = envelope.get('sender')
                     payload = dict(envelope)
                     payload.pop('sig', None)
+                    # Normalize userHost if present
+                    if isinstance(payload, dict) and payload.get('userHost'):
+                        payload['userHost'] = self._normalize_user_host(payload['userHost'])
+                    signed_message = payload
+
                     signed_message = payload
                 if payload and sig_b64 and sender:
                     peer_keys = self._load_peer_keys()
-                    pub_b64 = peer_keys.get(sender)
-                    if not pub_b64 and payload.get('typ') == 'KeyAnnounce':
+                    if payload.get('typ') == 'KeyAnnounce' and payload.get('pubkey'):
                         pub_b64 = payload.get('pubkey')
-                    if pub_b64:
+                    else:
+                        pub_b64 = peer_keys.get(sender)
+                    self.log.debug(f"Pub: {pub_b64}")
+                    if pub_b64: 
+                        self.log.debug(f"Receiver using public key for '{sender}': {pub_b64}")  # <--- ADD
                         pub_bytes = base64.b64decode(pub_b64)
                         public_key = ed25519.Ed25519PublicKey.from_public_bytes(pub_bytes)
                         payload_json = json.dumps(signed_message, sort_keys=True).encode('utf-8')
+                        self.log.debug(f"Payload json: {payload_json}")
                         signature = base64.b64decode(sig_b64)
-                        public_key.verify(signature, payload_json)
-                        verified = True
+                        try:
+                            public_key.verify(signature, payload_json)
+                            verified = True
+                        except Exception as verify_err:
+                            self.log.debug(f"Signature verification failed: {type(verify_err).__name__}: {verify_err} Payload signed: {payload_json}")
+
+                            verified = False
                     else:
                         self.log.debug(f"No public key found for sender '{sender}' — cannot verify.")
         except Exception as e:
-            self.log.debug(f"Envelope verification failed: {e}")
+            self.log.debug(f"Envelope verification failed: {type(e).__name__} ({e})")
             verified = False
         return payload, verified, is_signed
 
@@ -300,7 +335,7 @@ class ErrForward(BotPlugin):
                 pub_b64 = base64.b64encode(pub_bytes).decode('utf-8')
                 key_payload = {
                     'typ': 'KeyAnnounce',
-                    'sender': (self.config.get('bot_id') if self.config else None) or self.user_name or 'bot1',
+                    'sender': self._get_bot_id(),
                     'pubkey': pub_b64
                 }
                 signed_key_announce = self._sign_envelope(key_payload)
@@ -412,7 +447,7 @@ class ErrForward(BotPlugin):
 
         msg = {
             'userName': usr or self.user_name or pwd.getpwuid(os.getuid())[0],
-            'userHost': host or self.user_host or os.uname()[1],
+            'userHost': self._normalize_user_host(host or self.user_host or os.uname()[1]),
             'frm': str(frm) if frm else '',
             'typ': typ,
             'cmd': cmd,
@@ -566,7 +601,7 @@ class ErrForward(BotPlugin):
                     sender = None
 
                 body_text = f"{bot_prefix}{effective_cmd} {new_args}".strip() if new_args else f"{bot_prefix}{effective_cmd}"
-                new_msg = Message(frm=sender, body=body_text)
+                new_msg = Message(frm=sender, text=body_text)
                 if hasattr(new_msg, '__dict__'):
                     new_msg.text = body_text
 
@@ -637,7 +672,7 @@ class ErrForward(BotPlugin):
 
             target_name = msg_e.get('userName')
             target_host = msg_e.get('userHost')
-            legacy_bot_id = (self.config.get('bot_id') if self.config else None) or self.user_name or 'bot1'
+            legacy_bot_id = self._get_bot_id()
             is_current_target = (
                 target_name == self.user_name and target_host == self.user_host
             )
@@ -661,27 +696,60 @@ class ErrForward(BotPlugin):
                 replies = urllib.parse.unquote(raw_args) if raw_args else ""
 
                 frm = msg_e.get('frm')
+                # Determine recipient identifier, with fallback to admin if needed
+                msg_to = None
                 if frm and frm != '-':
                     try:
                         msg_to = self._bot.build_identifier(frm)
                     except Exception:
                         msg_to = None
-                elif getattr(self._bot.bot_config, 'BOT_ADMINS', None):
-                    msg_to = self._bot.build_identifier(self._bot.bot_config.BOT_ADMINS[0])
-                else:
-                    msg_to = None
+                if not msg_to:
+                    admins = getattr(self._bot.bot_config, 'BOT_ADMINS', None)
+                    if admins:
+                        try:
+                            msg_to = self._bot.build_identifier(admins[0])
+                        except Exception:
+                            msg_to = None
 
                 # Safe markdown escaping without Python 3.12 syntax warning
                 replies = replies.replace('_', r'\_')
 
+                if not msg_to:
+                    # fallback to raw frm string if identifier missing
+                    msg_to = frm
                 if msg_to and replies:
                     self.send(msg_to, replies)
-                elif not msg_to:
+                else:
                     self.log.warning(f"No recipient found for reply: {replies}")
         return None
 
+    def _normalize_user_host(self, host: str) -> str:
+        """Strip Slack link markup from a userHost value.
+        Slack may turn a plain URL like ``elmundoesimperfecto.com`` into
+        ``<http://elmundoesimperfecto.com|elmundoesimperfecto.com>``.
+        For signature consistency we want the raw host string.
+        """
+        if not host:
+            # Fallback to the bot's configured host if the incoming value is empty
+            return self.user_host or os.uname()[1]
+        # Remove surrounding angle brackets
+        if host.startswith('<') and host.endswith('>'):
+            host = host[1:-1]
+        # Slack format ``url|display`` – keep the display part if present
+        if '|' in host:
+            _, display = host.split('|', 1)
+            host = display
+        # Strip protocol prefixes
+        if host.startswith('http://'):
+            host = host[len('http://'):]
+        if host.startswith('https://'):
+            host = host[len('https://'):]
+        return host
+
     def manage_posts(self):
         self.log.info("Start manage posts")
+
+        # Skip processing if plugin is not fully configured
         if not hasattr(self, 'sc') or not self.sc:
             return None
         if not self.config and not self.channel:
@@ -709,6 +777,9 @@ class ErrForward(BotPlugin):
                 if payload.get('typ') == 'KeyAnnounce':
                     sender = payload.get('sender')
                     pubkey = payload.get('pubkey')
+                    if sender == self._get_bot_id():
+                        self.log.debug("Skipping our own key announcement")
+                        continue
                     if sender and pubkey:
                         keys = self._load_peer_keys()
                         keys[sender] = pubkey
@@ -724,18 +795,22 @@ class ErrForward(BotPlugin):
                 # Legacy/unsigned peers cannot authenticate; interpret their message.
                 msg_e = payload or self.extract_args(msg)
 
-            if isinstance(msg_e, dict):
-                msg_type = msg_e.get('typ') or msg_e.get('type')
-                if msg_type == 'Cmd':
-                    try:
-                        self.manage_command(msg_e, msg)
-                    except Exception as e:
-                        self.log.exception(f"Error handling Cmd post: {e}")
-                elif msg_type == 'Rep':
-                    try:
-                        self.manage_reply(msg_e, msg)
-                    except Exception as e:
-                        self.log.exception(f"Error handling Rep post: {e}")
+            # Normalize userHost in the payload to strip Slack markup
+            if isinstance(msg_e, dict) and msg_e.get('userHost'):
+                msg_e['userHost'] = self._normalize_user_host(msg_e['userHost'])
+
+            # Determine message type and dispatch
+            msg_type = msg_e.get('typ') or msg_e.get('type')
+            if msg_type == 'Cmd':
+                try:
+                    self.manage_command(msg_e, msg)
+                except Exception as e:
+                    self.log.exception(f"Error handling Cmd post: {e}")
+            elif msg_type == 'Rep':
+                try:
+                    self.manage_reply(msg_e, msg)
+                except Exception as e:
+                    self.log.exception(f"Error handling Rep post: {e}")
         return None
 
     def forward_command(self, mess, args):
