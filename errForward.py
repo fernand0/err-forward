@@ -594,9 +594,7 @@ class ErrForward(BotPlugin):
                     sender = None
 
                 body_text = f"{bot_prefix}{effective_cmd} {new_args}".strip() if new_args else f"{bot_prefix}{effective_cmd}"
-                new_msg = Message(frm=sender, text=body_text)
-                if hasattr(new_msg, '__dict__'):
-                    new_msg.text = body_text
+                new_msg = Message(frm=sender, body=body_text)
 
                 try:
                     try:
