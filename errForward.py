@@ -194,6 +194,9 @@ class ErrForward(BotPlugin):
                     # Normalize userHost if present
                     if isinstance(payload, dict) and payload.get('userHost'):
                         payload['userHost'] = self._normalize_user_host(payload['userHost'])
+                    # Restore normalized sender so payload matches what was originally signed
+                    if sender:
+                        payload['sender'] = sender
                     signed_message = payload
 
                     signed_message = payload
