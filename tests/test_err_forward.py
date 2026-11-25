@@ -494,6 +494,25 @@ class TestErrForward(unittest.TestCase):
         self.assertIsInstance(received_args[0], str)
         self.assertEqual(received_args[0], 'hello world')
 
+    def test_get_bot_id(self):
+        # 1. Config override
+        self.plugin.config = {'bot_id': 'custom_bot'}
+        self.assertEqual(self.plugin._get_bot_id(), 'custom_bot')
+
+        # 2. user_name and user_host fallback
+        self.plugin.config = {}
+        self.plugin.user_name = 'alice'
+        self.plugin.user_host = 'example.org'
+        self.assertEqual(self.plugin._get_bot_id(), 'alice@example.org')
+
+        # 3. user_name only
+        self.plugin.user_host = None
+        self.assertEqual(self.plugin._get_bot_id(), 'alice')
+
+        # 4. Default fallback
+        self.plugin.user_name = None
+        self.assertEqual(self.plugin._get_bot_id(), 'bot1')
+
 
 if __name__ == '__main__':
     unittest.main()
