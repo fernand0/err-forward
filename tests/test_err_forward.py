@@ -266,6 +266,7 @@ class TestErrForward(unittest.TestCase):
         self.assertEqual(len(received_msg), 1)
         self.assertIsInstance(received_msg[0], Message)
         self.assertEqual(str(received_msg[0].frm), '@sender:test.org')
+        self.assertEqual(received_msg[0].body, '!testcmd hello world')
         self.assertEqual(received_args[0], 'hello world')
 
         # Ensure a reply post was published
