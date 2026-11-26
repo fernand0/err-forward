@@ -136,7 +136,7 @@ class ErrForward(BotPlugin):
              format=serialization.PublicFormat.Raw
         )).decode('ascii')
         self.log.debug(f"Sender active public key: {sender_pub}")  # <--- ADD THIS
-        
+
         bot_id = self._get_bot_id()
         uptime = int(self._bot.get_uptime()) if hasattr(self._bot, 'get_uptime') else 0
         # Ensure payload dict is normalized (userHost) before signing
@@ -218,7 +218,7 @@ class ErrForward(BotPlugin):
                         # First, URL-decode any percent-encoding
                         args_val = urllib.parse.unquote(payload['args'])
                         # Then, strip Slack's <url|display> markup if present
-                        if args_val.startswith('<') and args_val.endswith('>'): #and '|' in args_val:
+                        if args_val.startswith('<') and args_val.endswith('>'):  #and '|' in args_val:
                             _, display = args_val[1:-1].split('|', 1)
                             args_val = display
                         payload['args'] = args_val
