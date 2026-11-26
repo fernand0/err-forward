@@ -169,13 +169,7 @@ class ErrForward(BotPlugin):
                 result = True
         except Exception:
             result = False
-        # Strip protocol prefixes unless keep_protocol is True
-        if not keep_protocol:
-            if result.startswith('http://'):
-                result = result[len('http://'):]
-            if result.startswith('https://'):
-                result = result[len('https://'):]
-        return result
+
 
     def _try_verify_envelope(self, envelope_str):
         """Attempt to verify a signed envelope string.
@@ -261,13 +255,7 @@ class ErrForward(BotPlugin):
         """Legacy helper: returns the payload dict on successful verification, else None."""
         payload, verified, _ = self._try_verify_envelope(envelope_str)
         result = payload if verified else None
-        # Strip protocol prefixes unless keep_protocol is True
-        if not keep_protocol:
-            if result.startswith('http://'):
-                result = result[len('http://'):]
-            if result.startswith('https://'):
-                result = result[len('https://'):]
-        return result
+
 
     def _prepare_peer_message(self, payload):
         """Serialize a command for a peer, signing it when this bot has a key."""
@@ -275,13 +263,7 @@ class ErrForward(BotPlugin):
             result = self._sign_envelope(payload)
         else:
             result = self.prepare_message(**payload)
-        # Strip protocol prefixes unless keep_protocol is True
-        if not keep_protocol:
-            if result.startswith('http://'):
-                result = result[len('http://'):]
-            if result.startswith('https://'):
-                result = result[len('https://'):]
-        return result
+
 
     def activate(self):
         """
@@ -772,13 +754,7 @@ class ErrForward(BotPlugin):
             if '|' in result:
                 _, display = result.split('|', 1)
                 result = display
-        # Strip protocol prefixes unless keep_protocol is True
-        if not keep_protocol:
-            if result.startswith('http://'):
-                result = result[len('http://'):]
-            if result.startswith('https://'):
-                result = result[len('https://'):]
-        return result
+
 
     def _normalize_sender(self, sender: str) -> str:
         """Strip Slack markup from a sender field.
@@ -791,13 +767,7 @@ class ErrForward(BotPlugin):
         if '::' in result:
             user_part, host_part = result.split('::', 1)
             result = f"{user_part}::{self._normalize_user_host(host_part)}"
-        # Strip protocol prefixes unless keep_protocol is True
-        if not keep_protocol:
-            if result.startswith('http://'):
-                result = result[len('http://'):]
-            if result.startswith('https://'):
-                result = result[len('https://'):]
-        return result
+
 
     def manage_posts(self):
         self.log.info("Start manage posts")
@@ -915,13 +885,7 @@ class ErrForward(BotPlugin):
                     except Exception as e:
                         self.log.error(f"Failed to forward command: {e}")
                         result = f"Failed to forward command: {e}"
-        # Strip protocol prefixes unless keep_protocol is True
-        if not keep_protocol:
-            if result.startswith('http://'):
-                result = result[len('http://'):]
-            if result.startswith('https://'):
-                result = result[len('https://'):]
-        return result
+
 
     @botcmd
     def forward(self, mess, args):
