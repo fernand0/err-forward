@@ -218,7 +218,7 @@ class ErrForward(BotPlugin):
                         # First, URL-decode any percent-encoding
                         args_val = urllib.parse.unquote(payload['args'])
                         # Then, strip Slack's <url|display> markup if present
-                        if args_val.startswith('<') and args_val.endswith('>') and '|' in args_val:
+                        if args_val.startswith('<') and args_val.endswith('>'): #and '|' in args_val:
                             _, display = args_val[1:-1].split('|', 1)
                             args_val = display
                         payload['args'] = args_val
@@ -235,7 +235,7 @@ class ErrForward(BotPlugin):
                     else:
                         pub_b64 = peer_keys.get(sender)
                     self.log.debug(f"Pub: {pub_b64}")
-                    if pub_b64: 
+                    if pub_b64:
                         self.log.debug(f"Receiver using public key for '{sender}': {pub_b64}")  # <--- ADD
                         pub_bytes = base64.b64decode(pub_b64)
                         public_key = ed25519.Ed25519PublicKey.from_public_bytes(pub_bytes)
