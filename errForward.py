@@ -169,6 +169,7 @@ class ErrForward(BotPlugin):
                 result = True
         except Exception:
             result = False
+        return result
 
 
     def _try_verify_envelope(self, envelope_str):
@@ -255,6 +256,7 @@ class ErrForward(BotPlugin):
         """Legacy helper: returns the payload dict on successful verification, else None."""
         payload, verified, _ = self._try_verify_envelope(envelope_str)
         result = payload if verified else None
+        return result
 
 
     def _prepare_peer_message(self, payload):
@@ -263,6 +265,7 @@ class ErrForward(BotPlugin):
             result = self._sign_envelope(payload)
         else:
             result = self.prepare_message(**payload)
+        return result
 
 
     def activate(self):
@@ -754,6 +757,12 @@ class ErrForward(BotPlugin):
             if '|' in result:
                 _, display = result.split('|', 1)
                 result = display
+        if not keep_protocol:
+            if result.startswith('http://'):
+                result = result[len('http://'):]
+            if result.startswith('https://'):
+                result = result[len('https://'):]
+        return result
 
 
     def _normalize_sender(self, sender: str) -> str:
@@ -767,6 +776,7 @@ class ErrForward(BotPlugin):
         if '::' in result:
             user_part, host_part = result.split('::', 1)
             result = f"{user_part}::{self._normalize_user_host(host_part)}"
+        return result
 
 
     def manage_posts(self):
@@ -885,6 +895,7 @@ class ErrForward(BotPlugin):
                     except Exception as e:
                         self.log.error(f"Failed to forward command: {e}")
                         result = f"Failed to forward command: {e}"
+        return result
 
 
     @botcmd
