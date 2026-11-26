@@ -1,9 +1,18 @@
 class ValidationException(Exception):
     pass
 
-class BotPlugin:
-    """Minimal stub for errbot BotPlugin"""
-    def __init__(self, bot=None):
+class Message:
+    def __init__(self, frm=None, body=''):
+        self.frm = frm
+        self.body = body
+
+class Identifier:
+    def __init__(self, id_str=''):
+        self.id_str = id_str
+    def __str__(self):
+        return self.id_str
+
+
         self._bot = bot
         self.log = type('log', (), {'info': print, 'debug': print, 'error': print, 'warning': print})
         self.config = {}

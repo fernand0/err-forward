@@ -563,5 +563,20 @@ class TestErrForward(unittest.TestCase):
         self.assertEqual(normalize(''), '')
 
 
+    def test_normalize_user_host(self):
+        norm = self.plugin._normalize_user_host
+        # plain host stays the same
+        self.assertEqual(norm('example.com'), 'example.com')
+        # Slack markup with display part
+        self.assertEqual(norm('<http://example.com|example.com>'), 'example.com')
+        # Protocol stripped by default
+        self.assertEqual(norm('http://example.com'), 'example.com')
+        # Protocol kept when flag is True
+        self.assertEqual(norm('http://example.com', keep_protocol=True), 'http://example.com')
+        # Angle brackets without display, just URL
+        self.assertEqual(norm('<https://example.com>'), 'example.com')
+        # Mixed case: keep_protocol=True should retain display without protocol stripping
+        self.assertEqual(norm('<http://example.com|example.com>', keep_protocol=True), 'example.com')
+
 if __name__ == '__main__':
     unittest.main()
