@@ -136,7 +136,7 @@ class ErrForward(BotPlugin):
              format=serialization.PublicFormat.Raw
         )).decode('ascii')
         self.log.debug(f"Sender active public key: {sender_pub}")  # <--- ADD THIS
-        
+
         bot_id = self._get_bot_id()
         uptime = int(self._bot.get_uptime()) if hasattr(self._bot, 'get_uptime') else 0
         # Ensure payload dict is normalized (userHost) before signing
@@ -184,6 +184,7 @@ class ErrForward(BotPlugin):
         is_signed = False
         try:
             envelope = json.loads(envelope_str) if isinstance(envelope_str, str) else envelope_str
+            self.log.info(f"Envelope: {envelope}")
             if isinstance(envelope, dict) and 'sig' in envelope:
                 is_signed = True
                 sig_b64 = envelope.get('sig')
@@ -200,7 +201,7 @@ class ErrForward(BotPlugin):
                         # First, URL-decode any percent-encoding
                         args_val = urllib.parse.unquote(payload['args'])
                         # Then, strip Slack's <url|display> markup if present
-                        if args_val.startswith('<') and args_val.endswith('>') and '|' in args_val:
+                        if args_val.startswith('<') and args_val.endswith('>'): # and '|' in args_val:
                             _, display = args_val[1:-1].split('|', 1)
                             args_val = display
                         payload['args'] = args_val
@@ -218,8 +219,9 @@ class ErrForward(BotPlugin):
                         # First, URL-decode any percent-encoding
                         args_val = urllib.parse.unquote(payload['args'])
                         # Then, strip Slack's <url|display> markup if present
-                        if args_val.startswith('<') and args_val.endswith('>'): #and '|' in args_val:
-                            _, display = args_val[1:-1].split('|', 1)
+                        if args_val.startswith('<') and args_val.endswith('>'):  #and '|' in args_val:
+                            #_, display = args_val[1:-1].split('|', 1)
+                            display = args_val[1:-1]#.split('|', 1)
                             args_val = display
                         payload['args'] = args_val
                     # Restore normalized sender so payload matches what was originally signed
@@ -798,6 +800,7 @@ class ErrForward(BotPlugin):
 
         for msg in posts:
             raw_text = msg.get('text') if isinstance(msg, dict) else None
+            self.log.info(f"Raw: {raw_text}")
             payload = None
             verified = False
             is_signed = False
