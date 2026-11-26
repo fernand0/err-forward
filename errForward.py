@@ -169,7 +169,12 @@ class ErrForward(BotPlugin):
                 result = True
         except Exception:
             result = False
-        # The result is a boolean indicating signing capability; no protocol stripping needed
+        # Strip protocol prefixes unless keep_protocol is True
+        if not keep_protocol:
+            if result.startswith('http://'):
+                result = result[len('http://'):]
+            if result.startswith('https://'):
+                result = result[len('https://'):]
         return result
 
     def _try_verify_envelope(self, envelope_str):
@@ -204,7 +209,6 @@ class ErrForward(BotPlugin):
                         # Use helper to strip Slack markup while preserving protocol if present
                         args_val = self._normalize_user_host(args_val, keep_protocol=True)
                         payload['args'] = args_val
-                    signed_message = payload
                 else:
                     # Signed command fields remain top-level for legacy bots.
                     sender = self._normalize_sender(envelope.get('sender') or '')
@@ -223,9 +227,8 @@ class ErrForward(BotPlugin):
                     # Restore normalized sender so payload matches what was originally signed
                     if sender:
                         payload['sender'] = sender
-                    signed_message = payload
 
-                    signed_message = payload
+                signed_message = payload
                 if payload and sig_b64 and sender:
                     peer_keys = self._load_peer_keys()
                     if payload.get('typ') == 'KeyAnnounce' and payload.get('pubkey'):
@@ -258,7 +261,12 @@ class ErrForward(BotPlugin):
         """Legacy helper: returns the payload dict on successful verification, else None."""
         payload, verified, _ = self._try_verify_envelope(envelope_str)
         result = payload if verified else None
-        # The result is a boolean indicating signing capability; no protocol stripping needed
+        # Strip protocol prefixes unless keep_protocol is True
+        if not keep_protocol:
+            if result.startswith('http://'):
+                result = result[len('http://'):]
+            if result.startswith('https://'):
+                result = result[len('https://'):]
         return result
 
     def _prepare_peer_message(self, payload):
@@ -267,7 +275,12 @@ class ErrForward(BotPlugin):
             result = self._sign_envelope(payload)
         else:
             result = self.prepare_message(**payload)
-        # The result is a boolean indicating signing capability; no protocol stripping needed
+        # Strip protocol prefixes unless keep_protocol is True
+        if not keep_protocol:
+            if result.startswith('http://'):
+                result = result[len('http://'):]
+            if result.startswith('https://'):
+                result = result[len('https://'):]
         return result
 
     def activate(self):
@@ -759,7 +772,12 @@ class ErrForward(BotPlugin):
             if '|' in result:
                 _, display = result.split('|', 1)
                 result = display
-        # The result is a boolean indicating signing capability; no protocol stripping needed
+        # Strip protocol prefixes unless keep_protocol is True
+        if not keep_protocol:
+            if result.startswith('http://'):
+                result = result[len('http://'):]
+            if result.startswith('https://'):
+                result = result[len('https://'):]
         return result
 
     def _normalize_sender(self, sender: str) -> str:
@@ -773,7 +791,12 @@ class ErrForward(BotPlugin):
         if '::' in result:
             user_part, host_part = result.split('::', 1)
             result = f"{user_part}::{self._normalize_user_host(host_part)}"
-        # The result is a boolean indicating signing capability; no protocol stripping needed
+        # Strip protocol prefixes unless keep_protocol is True
+        if not keep_protocol:
+            if result.startswith('http://'):
+                result = result[len('http://'):]
+            if result.startswith('https://'):
+                result = result[len('https://'):]
         return result
 
     def manage_posts(self):
@@ -892,7 +915,12 @@ class ErrForward(BotPlugin):
                     except Exception as e:
                         self.log.error(f"Failed to forward command: {e}")
                         result = f"Failed to forward command: {e}"
-        # The result is a boolean indicating signing capability; no protocol stripping needed
+        # Strip protocol prefixes unless keep_protocol is True
+        if not keep_protocol:
+            if result.startswith('http://'):
+                result = result[len('http://'):]
+            if result.startswith('https://'):
+                result = result[len('https://'):]
         return result
 
     @botcmd
