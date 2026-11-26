@@ -169,6 +169,7 @@ class ErrForward(BotPlugin):
                 result = True
         except Exception:
             result = False
+        # The result is a boolean indicating signing capability; no protocol stripping needed
         return result
 
     def _try_verify_envelope(self, envelope_str):
@@ -196,14 +197,12 @@ class ErrForward(BotPlugin):
                     # Normalize userHost if present
                     if isinstance(payload, dict) and payload.get('userHost'):
                         payload['userHost'] = self._normalize_user_host(payload['userHost'])
-                    # Normalize args: unquote and strip Slack link markup
+                    # Normalize args: unquote and strip Slack link markup, optionally keeping protocol
                     if isinstance(payload, dict) and isinstance(payload.get('args'), str):
                         # First, URL-decode any percent-encoding
                         args_val = urllib.parse.unquote(payload['args'])
-                        # Then, strip Slack's <url|display> markup if present
-                        if args_val.startswith('<') and args_val.endswith('>'): # and '|' in args_val:
-                            _, display = args_val[1:-1].split('|', 1)
-                            args_val = display
+                        # Use helper to strip Slack markup while preserving protocol if present
+                        args_val = self._normalize_user_host(args_val, keep_protocol=True)
                         payload['args'] = args_val
                     signed_message = payload
                 else:
@@ -214,15 +213,12 @@ class ErrForward(BotPlugin):
                     # Normalize userHost if present
                     if isinstance(payload, dict) and payload.get('userHost'):
                         payload['userHost'] = self._normalize_user_host(payload['userHost'])
-                    # Normalize args: unquote and strip Slack link markup
+                    # Normalize args: unquote and strip Slack link markup, optionally keeping protocol
                     if isinstance(payload, dict) and isinstance(payload.get('args'), str):
                         # First, URL-decode any percent-encoding
                         args_val = urllib.parse.unquote(payload['args'])
-                        # Then, strip Slack's <url|display> markup if present
-                        if args_val.startswith('<') and args_val.endswith('>'):  #and '|' in args_val:
-                            #_, display = args_val[1:-1].split('|', 1)
-                            display = args_val[1:-1]#.split('|', 1)
-                            args_val = display
+                        # Use helper to strip Slack markup while preserving protocol if present
+                        args_val = self._normalize_user_host(args_val, keep_protocol=True)
                         payload['args'] = args_val
                     # Restore normalized sender so payload matches what was originally signed
                     if sender:
@@ -262,6 +258,7 @@ class ErrForward(BotPlugin):
         """Legacy helper: returns the payload dict on successful verification, else None."""
         payload, verified, _ = self._try_verify_envelope(envelope_str)
         result = payload if verified else None
+        # The result is a boolean indicating signing capability; no protocol stripping needed
         return result
 
     def _prepare_peer_message(self, payload):
@@ -270,6 +267,7 @@ class ErrForward(BotPlugin):
             result = self._sign_envelope(payload)
         else:
             result = self.prepare_message(**payload)
+        # The result is a boolean indicating signing capability; no protocol stripping needed
         return result
 
     def activate(self):
@@ -744,7 +742,7 @@ class ErrForward(BotPlugin):
                     self.log.warning(f"No recipient found for reply: {replies}")
         return None
 
-    def _normalize_user_host(self, host: str) -> str:
+    def _normalize_user_host(self, host: str, keep_protocol: bool = False) -> str:
         """Strip Slack link markup from a userHost value.
         Slack may turn a plain URL like ``elmundoesimperfecto.com`` into
         ``<http://elmundoesimperfecto.com|elmundoesimperfecto.com>``.
@@ -761,11 +759,7 @@ class ErrForward(BotPlugin):
             if '|' in result:
                 _, display = result.split('|', 1)
                 result = display
-            # Strip protocol prefixes
-            if result.startswith('http://'):
-                result = result[len('http://'):]
-            if result.startswith('https://'):
-                result = result[len('https://'):]
+        # The result is a boolean indicating signing capability; no protocol stripping needed
         return result
 
     def _normalize_sender(self, sender: str) -> str:
@@ -779,6 +773,7 @@ class ErrForward(BotPlugin):
         if '::' in result:
             user_part, host_part = result.split('::', 1)
             result = f"{user_part}::{self._normalize_user_host(host_part)}"
+        # The result is a boolean indicating signing capability; no protocol stripping needed
         return result
 
     def manage_posts(self):
@@ -897,6 +892,7 @@ class ErrForward(BotPlugin):
                     except Exception as e:
                         self.log.error(f"Failed to forward command: {e}")
                         result = f"Failed to forward command: {e}"
+        # The result is a boolean indicating signing capability; no protocol stripping needed
         return result
 
     @botcmd
