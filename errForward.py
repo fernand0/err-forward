@@ -681,7 +681,7 @@ class ErrForward(BotPlugin):
         self.log.info(f"Start manage reply ({msg})")
         if isinstance(msg_e, dict):
             user_host = msg_e.get('userHost', '')
-            if '|' in user_host:
+            if user_host and '|' in user_host:
                 user_host = user_host.split('|')[1]
                 if user_host.endswith('>'):
                     user_host = user_host[:-1]
