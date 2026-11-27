@@ -554,6 +554,7 @@ class ErrForward(BotPlugin):
         cmd = msg_e.get('cmd', '') if isinstance(msg_e, dict) else ''
         self.log.info(f"Start manage command ({cmd})")
         bot_prefix = getattr(self._bot.bot_config, 'BOT_PREFIX', '!')
+        self.log.info(f"Bot prefix: {bot_prefix}")
         len_prefix = len(bot_prefix)
         prefix = cmd[:len_prefix]
         cmd_name = cmd[len_prefix:]
