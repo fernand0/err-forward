@@ -202,8 +202,9 @@ class ErrForward(BotPlugin):
                         # First, URL-decode any percent-encoding
                         args_val = urllib.parse.unquote(payload['args'])
                         # Use helper to strip Slack markup while preserving protocol if present
-                        args_val = self._normalize_user_host(args_val, keep_protocol=True)
-                        payload['args'] = args_val
+                        if args_val:
+                            args_val = self._normalize_user_host(args_val, keep_protocol=True)
+                            payload['args'] = args_val
                 else:
                     # Signed command fields remain top-level for legacy bots.
                     sender = self._normalize_sender(envelope.get('sender') or '')
@@ -217,8 +218,9 @@ class ErrForward(BotPlugin):
                         # First, URL-decode any percent-encoding
                         args_val = urllib.parse.unquote(payload['args'])
                         # Use helper to strip Slack markup while preserving protocol if present
-                        args_val = self._normalize_user_host(args_val, keep_protocol=True)
-                        payload['args'] = args_val
+                        if args_val:
+                            args_val = self._normalize_user_host(args_val, keep_protocol=True)
+                            payload['args'] = args_val
                     # Restore normalized sender so payload matches what was originally signed
                     if sender:
                         payload['sender'] = sender
@@ -814,7 +816,7 @@ class ErrForward(BotPlugin):
                     if sender == self._get_bot_id():
                         self.log.debug("Skipping our own key announcement")
                         continue
-                    self.log.debug("Sender: {sender} PubKey: {pubkey}")
+                    self.log.debug(f"Sender: {sender} PubKey: {pubkey}")
                     if sender and pubkey:
                         keys = self._load_peer_keys()
                         keys[sender] = pubkey
