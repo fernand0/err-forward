@@ -254,6 +254,56 @@ class ErrForward(BotPlugin):
         return result
 
 
+    def _cleanup_own_startup_posts(self):
+        """Delete previous startup (Msg) and KeyAnnounce posts from this bot."""
+        deleted = 0
+        if hasattr(self, 'sc') and self.sc:
+            posts = []
+            try:
+                self.sc.setPosts()
+                posts = self.sc.getPosts() or []
+            except Exception as e:
+                self.log.error(f"Failed to fetch posts for startup cleanup: {e}")
+                posts = []
+
+            bot_id = self._get_bot_id()
+            for msg in posts:
+                if not isinstance(msg, dict) or self.id_post not in msg:
+                    continue
+                raw_text = msg.get('text')
+                if not raw_text:
+                    continue
+
+                payload, _, is_signed = self._try_verify_envelope(raw_text)
+                msg_e = payload if is_signed else self.extract_args(msg)
+                if not isinstance(msg_e, dict):
+                    continue
+
+                msg_type = msg_e.get('typ') or msg_e.get('type')
+                if msg_type not in ('Msg', 'KeyAnnounce'):
+                    continue
+
+                sender = self._normalize_sender(msg_e.get('sender') or '')
+                user_host = self._normalize_user_host(msg_e['userHost']) if msg_e.get('userHost') else ''
+                is_own_sender = bool(bot_id and sender == bot_id)
+                is_own_identity = bool(
+                    self.user_name
+                    and self.user_host
+                    and msg_e.get('userName') == self.user_name
+                    and user_host == self.user_host
+                )
+
+                if is_own_sender or is_own_identity:
+                    try:
+                        self.sc.deletePostId(msg[self.id_post])
+                        deleted += 1
+                    except Exception as e:
+                        self.log.error(f"Failed to delete startup post {msg[self.id_post]}: {e}")
+
+            if deleted:
+                self.log.info(f"Cleaned up {deleted} previous startup post(s)")
+        return deleted
+
     def activate(self):
         """
         Triggers on plugin activation
@@ -295,6 +345,7 @@ class ErrForward(BotPlugin):
                 # self['chan'] = chan
                 self.sc.setChannel(chan)
                 self.log.info(f"chanAct {self.sc.getChannel()}")
+                self._cleanup_own_startup_posts()
 
                 bot_prefix = getattr(self._bot.bot_config, 'BOT_PREFIX', '!')
                 backend = getattr(self._bot.bot_config, 'BACKEND', 'Unknown')

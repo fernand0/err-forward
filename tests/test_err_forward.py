@@ -578,5 +578,104 @@ class TestErrForward(unittest.TestCase):
         # Mixed case: keep_protocol=True should retain display without protocol stripping
         self.assertEqual(norm('<http://example.com|example.com>', keep_protocol=True), 'example.com')
 
+    def test_cleanup_own_startup_posts_deletes_only_own_startup_and_key_announce(self):
+        self.plugin.user_name = 'alice'
+        self.plugin.user_host = 'example.org'
+        self.plugin.id_post = 'ts'
+
+        own_hello = json.dumps({
+            'typ': 'Msg',
+            'userName': 'alice',
+            'userHost': '<http://example.org|example.org>',
+            'args': 'Hello! IP: 1.2.3.4',
+        })
+        own_signed_msg = json.dumps({
+            'typ': 'Msg',
+            'userName': 'alice',
+            'userHost': 'example.org',
+            'sender': 'alice::<http://example.org|example.org>',
+            'ver': 1,
+            'ts': 10,
+            'sig': 'dummy',
+        })
+        own_key_announce = json.dumps({
+            'typ': 'KeyAnnounce',
+            'sender': 'alice::example.org',
+            'pubkey': 'abc',
+            'ver': 1,
+            'ts': 10,
+            'sig': 'dummy',
+        })
+        peer_hello = json.dumps({
+            'typ': 'Msg',
+            'userName': 'bob',
+            'userHost': 'other.org',
+            'args': 'Hello! IP: 5.6.7.8',
+        })
+        peer_key_announce = json.dumps({
+            'typ': 'KeyAnnounce',
+            'sender': 'bob::other.org',
+            'pubkey': 'xyz',
+            'ver': 1,
+            'ts': 11,
+            'sig': 'dummy',
+        })
+        pending_cmd = json.dumps({
+            'typ': 'Cmd',
+            'userName': 'alice',
+            'userHost': 'example.org',
+            'cmd': '!status',
+            'args': '',
+        })
+        pending_rep = json.dumps({
+            'typ': 'Rep',
+            'userName': 'alice',
+            'userHost': 'example.org',
+            'args': 'ok',
+        })
+        human_msg = 'just chatting in the channel'
+
+        posts = [
+            {'ts': '1', 'text': own_hello},
+            {'ts': '2', 'text': own_signed_msg},
+            {'ts': '3', 'text': own_key_announce},
+            {'ts': '4', 'text': peer_hello},
+            {'ts': '5', 'text': peer_key_announce},
+            {'ts': '6', 'text': pending_cmd},
+            {'ts': '7', 'text': pending_rep},
+            {'ts': '8', 'text': human_msg},
+        ]
+
+        self.plugin.sc = MagicMock()
+        self.plugin.sc.getPosts.return_value = posts
+
+        deleted = self.plugin._cleanup_own_startup_posts()
+
+        self.assertEqual(deleted, 3)
+        self.assertEqual(
+            [call.args[0] for call in self.plugin.sc.deletePostId.call_args_list],
+            ['1', '2', '3'],
+        )
+
+    def test_cleanup_own_startup_posts_handles_errors_gracefully(self):
+        self.plugin.user_name = 'alice'
+        self.plugin.user_host = 'example.org'
+        self.plugin.id_post = 'ts'
+        self.plugin.sc = MagicMock()
+        self.plugin.sc.setPosts.side_effect = RuntimeError('network error')
+
+        deleted = self.plugin._cleanup_own_startup_posts()
+        self.assertEqual(deleted, 0)
+
+        self.plugin.sc.setPosts.side_effect = None
+        self.plugin.sc.getPosts.return_value = [
+            {'ts': '1', 'text': json.dumps({'typ': 'Msg', 'userName': 'alice', 'userHost': 'example.org', 'args': 'Hello!'})},
+            {'ts': '2', 'text': json.dumps({'typ': 'KeyAnnounce', 'sender': 'alice::example.org', 'pubkey': 'abc', 'ver': 1, 'ts': 1, 'sig': 's'})},
+        ]
+        self.plugin.sc.deletePostId.side_effect = [RuntimeError('rate limit'), None]
+
+        deleted = self.plugin._cleanup_own_startup_posts()
+        self.assertEqual(deleted, 1)
+
 if __name__ == '__main__':
     unittest.main()
