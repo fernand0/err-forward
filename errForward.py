@@ -228,7 +228,9 @@ class ErrForward(BotPlugin):
                             public_key.verify(signature, payload_json)
                             verified = True
                         except Exception as verify_err:
-                            self.log.debug(f"Signature verification failed: {type(verify_err).__name__}: {verify_err} Payload signed: {payload_json}")
+                            self.log.debug(f"Signature verification failed: "
+                                           f"{type(verify_err).__name__}: {verify_err} "
+                                           f"Payload signed: {payload_json}")
 
                             verified = False
                     else:
@@ -238,19 +240,12 @@ class ErrForward(BotPlugin):
             verified = False
         return payload, verified, is_signed
 
-    def _verify_envelope(self, envelope_str):
-        """Legacy helper: returns the payload dict on successful verification, else None."""
-        payload, verified, _ = self._try_verify_envelope(envelope_str)
-        result = payload if verified else None
-        return result
-
-
     def _prepare_peer_message(self, payload):
         """Serialize a command for a peer, signing it when this bot has a key."""
         if self._has_signing_capability():
             result = self._sign_envelope(payload)
         else:
-            result = self.prepare_message(**payload)
+            result = json.dumps(payload)
         return result
 
 
@@ -304,6 +299,40 @@ class ErrForward(BotPlugin):
                 self.log.info(f"Cleaned up {deleted} previous startup post(s)")
         return deleted
 
+    def _publish_startup_posts(self, chan):
+        """Publish signed activation (Hello!) and KeyAnnounce posts to the channel."""
+        bot_prefix = getattr(self._bot.bot_config, 'BOT_PREFIX', '!')
+        backend = getattr(self._bot.bot_config, 'BACKEND', 'Unknown')
+        private_key = self._load_private_key()
+
+        hello_payload = self._build_message(
+            typ='Msg',
+            args=(
+                f"Hello! IP: {self.get_my_ip()}. "
+                f"Commands [{bot_prefix}]. "
+                f"Name: {self.user_name}@{self.user_host}. "
+                f"Backend: {backend}"
+            ),
+        )
+
+        pub_bytes = private_key.public_key().public_bytes(
+            encoding=serialization.Encoding.Raw,
+            format=serialization.PublicFormat.Raw
+        )
+        key_payload = self._build_message(typ='KeyAnnounce')
+        key_payload['pubkey'] = base64.b64encode(pub_bytes).decode('utf-8')
+
+        startup_posts = [
+            (self._sign_envelope(hello_payload), "activation message"),
+            (self._sign_envelope(key_payload), "key announcement"),
+        ]
+        for post_body, label in startup_posts:
+            try:
+                self.sc.publishPost(post_body, '', chan)
+            except Exception as e:
+                self.log.error(f"Failed to publish {label}: {e}")
+        return None
+
     def activate(self):
         """
         Triggers on plugin activation
@@ -344,61 +373,8 @@ class ErrForward(BotPlugin):
                 self.channel = chan
                 # self['chan'] = chan
                 self.sc.setChannel(chan)
-                self.log.info(f"chanAct {self.sc.getChannel()}")
                 self._cleanup_own_startup_posts()
-
-                bot_prefix = getattr(self._bot.bot_config, 'BOT_PREFIX', '!')
-                backend = getattr(self._bot.bot_config, 'BACKEND', 'Unknown')
-                msg_j = self.prepare_message(
-                    typ='Msg',
-                    args=(
-                        f"Hello! IP: {self.get_my_ip()}. "
-                        f"Commands [{bot_prefix}]. "
-                        f"Name: {self.user_name}@{self.user_host}. "
-                        f"Backend: {backend}"
-                    ),
-                )
-
-                self.log.debug(f"Chan: {self.sc.getChannel()}")
-                try:
-                    self.sc.publishPost(msg_j, '', self.sc.getChannel())
-                except Exception as e:
-                    self.log.error(f"Failed to publish activation message: {e}")
-
-                # Load or generate private key
-                private_key = self._load_private_key()
-                # Publish a signed activation message
-                activation_payload = {
-                    'typ': 'Msg',
-                    'userName': self.user_name,
-                    'userHost': self.user_host,
-                    'frm': '',
-                    'cmd': '',
-                    'args': ''
-                }
-                signed_msg = self._sign_envelope(activation_payload)
-                try:
-                    self.sc.publishPost(signed_msg, '', self.sc.getChannel())
-                except Exception as e:
-                    self.log.error(f"Failed to publish signed activation message: {e}")
-
-                # Announce our public key to peers
-                pub_key = private_key.public_key()
-                pub_bytes = pub_key.public_bytes(
-                    encoding=serialization.Encoding.Raw,
-                    format=serialization.PublicFormat.Raw
-                )
-                pub_b64 = base64.b64encode(pub_bytes).decode('utf-8')
-                key_payload = {
-                    'typ': 'KeyAnnounce',
-                    'sender': self._get_bot_id(),
-                    'pubkey': pub_b64
-                }
-                signed_key_announce = self._sign_envelope(key_payload)
-                try:
-                    self.sc.publishPost(signed_key_announce, '', self.sc.getChannel())
-                except Exception as e:
-                    self.log.error(f"Failed to publish key announcement: {e}")
+                self._publish_startup_posts(chan)
 
                 self.start_poller(60, self.manage_posts)
                 self.log.info("ErrForward has been activated")
@@ -407,7 +383,13 @@ class ErrForward(BotPlugin):
 
     def get_configuration_template(self):
         return {
-            'channel': "general",
+            'channel': 'general',
+            'module': 'moduleSlack',
+            'id_post_override': '',
+            'user_name': '',
+            'user_host': '',
+            'bot_id': '',
+            'priv_key_path': '',
         }
 
     def check_configuration(self, configuration):
@@ -482,7 +464,7 @@ class ErrForward(BotPlugin):
                 remaining = remaining[split_at:].lstrip('\n')
         return chunks
 
-    def prepare_message(
+    def _build_message(
         self,
         usr="",
         host="",
@@ -492,8 +474,7 @@ class ErrForward(BotPlugin):
         cmd="",
         args="",
     ):
-        self.log.info("Start prepare_message")
-
+        """Build a message payload dictionary."""
         if not frm and mess:
             frm = getattr(mess, 'frm', str(mess))
 
@@ -509,8 +490,29 @@ class ErrForward(BotPlugin):
             'cmd': cmd,
             'args': args,
         }
-        msg_j = json.dumps(msg)
+        return msg
 
+    def prepare_message(
+        self,
+        usr="",
+        host="",
+        frm="",
+        mess=None,
+        typ="",
+        cmd="",
+        args="",
+    ):
+        self.log.info("Start prepare_message")
+        msg = self._build_message(
+            usr=usr,
+            host=host,
+            frm=frm,
+            mess=mess,
+            typ=typ,
+            cmd=cmd,
+            args=args,
+        )
+        msg_j = json.dumps(msg)
         self.log.info("End prepare_message")
         return msg_j
 
@@ -560,14 +562,12 @@ class ErrForward(BotPlugin):
                         continue
 
                     new_cmd = start + cmd
-                    payload = {
-                        'typ': 'Cmd',
-                        'cmd': new_cmd,
-                        'args': msg.get('args', ''),
-                        'frm': str(getattr(msg.get('mess'), 'frm', '')),
-                        'userName': self.user_name or '',
-                        'userHost': self.user_host or '',
-                    }
+                    payload = self._build_message(
+                        frm=str(getattr(msg.get('mess'), 'frm', '')),
+                        typ='Cmd',
+                        cmd=new_cmd,
+                        args=msg.get('args', ''),
+                    )
                     msg_j = self._prepare_peer_message(payload)
                     self.sc.publishPost(msg_j, '', chan)
                 except Exception as e:
@@ -718,12 +718,8 @@ class ErrForward(BotPlugin):
 
         self.log.info(f"Start manage reply ({msg})")
         if isinstance(msg_e, dict):
-            user_host = msg_e.get('userHost', '')
-            if user_host and '|' in user_host:
-                user_host = user_host.split('|')[1]
-                if user_host.endswith('>'):
-                    user_host = user_host[:-1]
-                msg_e['userHost'] = user_host
+            if msg_e.get('userHost'):
+                msg_e['userHost'] = self._normalize_user_host(msg_e['userHost'])
 
             target_name = msg_e.get('userName')
             target_host = msg_e.get('userHost')
@@ -917,14 +913,12 @@ class ErrForward(BotPlugin):
                     self.log.info(f"End forward broadcast for {mess}")
                     result = f"Broadcasted '{new_cmd}' to all bots on channel {chan}."
                 else:
-                    payload = {
-                        'typ': 'Cmd',
-                        'cmd': cmd,
-                        'args': new_args,
-                        'frm': str(getattr(mess, 'frm', '')),
-                        'userName': self.user_name or '',
-                        'userHost': self.user_host or '',
-                    }
+                    payload = self._build_message(
+                        frm=str(getattr(mess, 'frm', '')),
+                        typ='Cmd',
+                        cmd=cmd,
+                        args=new_args,
+                    )
                     msg_e = self._prepare_peer_message(payload)
                     try:
                         self.sc.publishPost(msg_e, '', chan)

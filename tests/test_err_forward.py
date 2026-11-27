@@ -409,8 +409,16 @@ class TestErrForward(unittest.TestCase):
 
     def test_check_configuration_validates(self):
         full_cfg = self.plugin.get_configuration_template()
+        self.assertIn('module', full_cfg)
+        self.assertIn('id_post_override', full_cfg)
+        self.assertIn('user_name', full_cfg)
+        self.assertIn('user_host', full_cfg)
+        self.assertIn('bot_id', full_cfg)
+        self.assertIn('priv_key_path', full_cfg)
         full_cfg['channel'] = 'custom-channel'
         self.plugin.check_configuration(full_cfg)
+        # Minimal configuration with just 'channel' should also be accepted
+        self.plugin.check_configuration({'channel': 'general'})
         from errbot import ValidationException
         with self.assertRaises(ValidationException):
             bad_cfg = dict(full_cfg)
