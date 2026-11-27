@@ -190,40 +190,24 @@ class ErrForward(BotPlugin):
                 is_signed = True
                 sig_b64 = envelope.get('sig')
                 self.log.debug(f"Signature: {sig_b64}")
-                if 'payload' in envelope and isinstance(envelope.get('payload'), dict) and 'ver' in envelope:
-                    # Accept the previous nested-envelope format.
-                    sender = self._normalize_sender(envelope.get('sender') or '')
-                    payload = envelope.get('payload')
-                    # Normalize userHost if present
-                    if isinstance(payload, dict) and payload.get('userHost'):
-                        payload['userHost'] = self._normalize_user_host(payload['userHost'])
-                    # Normalize args: unquote and strip Slack link markup, optionally keeping protocol
-                    if isinstance(payload, dict) and isinstance(payload.get('args'), str):
-                        # First, URL-decode any percent-encoding
-                        args_val = urllib.parse.unquote(payload['args'])
-                        # Use helper to strip Slack markup while preserving protocol if present
-                        if args_val:
-                            args_val = self._normalize_user_host(args_val, keep_protocol=True)
-                            payload['args'] = args_val
-                else:
-                    # Signed command fields remain top-level for legacy bots.
-                    sender = self._normalize_sender(envelope.get('sender') or '')
-                    payload = dict(envelope)
-                    payload.pop('sig', None)
-                    # Normalize userHost if present
-                    if isinstance(payload, dict) and payload.get('userHost'):
-                        payload['userHost'] = self._normalize_user_host(payload['userHost'])
-                    # Normalize args: unquote and strip Slack link markup, optionally keeping protocol
-                    if isinstance(payload, dict) and isinstance(payload.get('args'), str):
-                        # First, URL-decode any percent-encoding
-                        args_val = urllib.parse.unquote(payload['args'])
-                        # Use helper to strip Slack markup while preserving protocol if present
-                        if args_val:
-                            args_val = self._normalize_user_host(args_val, keep_protocol=True)
-                            payload['args'] = args_val
-                    # Restore normalized sender so payload matches what was originally signed
-                    if sender:
-                        payload['sender'] = sender
+                sender = self._normalize_sender(envelope.get('sender') or '')
+                payload = dict(envelope)
+                payload.pop('sig', None)
+                # Restore normalized sender so payload matches what was originally signed
+                if sender:
+                    payload['sender'] = sender
+
+                # Normalize userHost if present
+                if payload.get('userHost'):
+                    payload['userHost'] = self._normalize_user_host(payload['userHost'])
+                # Normalize args: unquote and strip Slack link markup, optionally keeping protocol
+                if isinstance(payload.get('args'), str):
+                    # First, URL-decode any percent-encoding
+                    args_val = urllib.parse.unquote(payload['args'])
+                    # Use helper to strip Slack markup while preserving protocol if present
+                    if args_val:
+                        args_val = self._normalize_user_host(args_val, keep_protocol=True)
+                        payload['args'] = args_val
 
                 signed_message = payload
                 if payload and sig_b64 and sender:
