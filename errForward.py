@@ -691,7 +691,7 @@ class ErrForward(BotPlugin):
                     txt_chunks = self._split_message(txt_r)
                     publish_chan = chan or self.sc.getChannel()
                     for chunk in txt_chunks:
-                        reply_msg = self.prepare_message(
+                        reply_payload = self._build_message(
                             typ='Rep',
                             usr=msg_e.get('userName', ''),
                             host=msg_e.get('userHost', ''),
@@ -699,6 +699,7 @@ class ErrForward(BotPlugin):
                             cmd=effective_cmd,
                             args=chunk,
                         )
+                        reply_msg = self._sign_envelope(reply_payload)
                         self.sc.publishPost(reply_msg, '', publish_chan)
                 except Exception as e:
                     self.log.error(f"Error executing or replying to command {cmd_name}: {e}")

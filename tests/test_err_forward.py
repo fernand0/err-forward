@@ -275,6 +275,7 @@ class TestErrForward(unittest.TestCase):
         reply_data = json.loads(published_args[0])
         self.assertEqual(reply_data['typ'], 'Rep')
         self.assertEqual(reply_data['cmd'], 'testcmd')
+        self.assertIn('sig', reply_data)
         unquoted_reply = urllib.parse.unquote(reply_data['args'])
         self.assertIn('Hello from @sender:test.org: hello world', unquoted_reply)
 
