@@ -394,18 +394,14 @@ class TestErrForward(unittest.TestCase):
 
         self.plugin.manage_command.assert_not_called()
 
-    def test_manage_posts_interprets_signed_message_when_authentication_is_unavailable(self):
-        self.plugin.sc.getPosts.return_value = [{'text': 'signed'}]
-        self.plugin._try_verify_envelope = MagicMock(return_value=(
-            {'typ': 'Cmd', 'cmd': '!status', 'args': ''},
-            False,
-            True,
-        ))
-        self.plugin._has_signing_capability = MagicMock(return_value=False)
+    def test_manage_posts_drops_unsigned_message(self):
+        self.plugin.sc.getPosts.return_value = [{
+            'text': json.dumps({'typ': 'Cmd', 'cmd': '!status', 'args': ''}),
+        }]
         self.plugin.manage_command = MagicMock()
         self.plugin.managePosts()
 
-        self.plugin.manage_command.assert_called_once()
+        self.plugin.manage_command.assert_not_called()
 
     def test_check_configuration_validates(self):
         full_cfg = self.plugin.get_configuration_template()

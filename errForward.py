@@ -856,13 +856,12 @@ class ErrForward(BotPlugin):
                         self.log.info(f"Stored peer public key for {sender}")
                     continue  # Key announcement handled
                 msg_e = payload
-            elif is_signed and self._has_signing_capability():
-                # A signed peer is expected to authenticate when we can too.
-                self.log.warning("Dropping unverifiable signed message")
-                continue
             else:
-                # Legacy/unsigned peers cannot authenticate; interpret their message.
-                msg_e = payload or self.extract_args(msg)
+                if is_signed:
+                    self.log.warning("Dropping unverifiable signed message")
+                else:
+                    self.log.warning("Dropping unsigned message")
+                continue
 
             # Normalize userHost in the payload to strip Slack markup
             if isinstance(msg_e, dict) and msg_e.get('userHost'):
